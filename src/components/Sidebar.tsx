@@ -191,7 +191,6 @@ function BookIcon() {
 
 export default function Sidebar() {
   const observations = useAppStore((s) => s.observations);
-  const speciesProposals = useAppStore((s) => s.speciesProposals);
   const filters = useAppStore((s) => s.filters);
   const toggleFilter = useAppStore((s) => s.toggleFilter);
   const timeRange = useAppStore((s) => s.timeRange);
@@ -304,25 +303,7 @@ export default function Sidebar() {
           <ShieldIcon />
           <span>Vous pouvez masquer, anonymiser ou rendre plus imprécises vos contributions sensibles.</span>
         </div>
-        {speciesProposals.length > 0 && (
-          <div className={styles.proposalAdminBox}>
-            <h3>Propositions d&apos;espèces</h3>
-            {speciesProposals.map((proposal) => (
-              <div key={proposal.id} className={styles.proposalAdminItem}>
-                <div>
-                  <strong>{proposal.proposed_name}</strong>
-                  <span>
-                    {CATEGORY_CONFIG[proposal.category].label}
-                    {proposal.nearby_existing_name
-                      ? ` · proche de ${proposal.nearby_existing_name}`
-                      : ""}
-                  </span>
-                </div>
-                <em>À vérifier</em>
-              </div>
-            ))}
-          </div>
-        )}
+
         <div className={styles.listScroll}>
           {myObservations.length === 0 ? (
             <div className={styles.emptyState}>

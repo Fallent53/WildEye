@@ -1211,6 +1211,37 @@ export function getAnimalSuggestions(value: string, limit = 8) {
   ).slice(0, limit);
 }
 
+export function getSpeciesSuggestions(category: Category, value: string, limit = 8) {
+  const query = normalizeSpeciesText(value);
+  if (query.length < 2) return [];
+
+  if (category === "faune") return getAnimalSuggestions(value, limit);
+
+  if (category === "flore") {
+    return Object.keys(FLORA_METADATA)
+      .filter((name) => normalizeSpeciesText(name).includes(query))
+      .map((name) => ({
+        vernacularName: name,
+        scientificName: "",
+        emoji: "🌿",
+      }))
+      .slice(0, limit);
+  }
+
+  if (category === "cristal") {
+    return Object.keys(CRYSTAL_METADATA)
+      .filter((name) => normalizeSpeciesText(name).includes(query))
+      .map((name) => ({
+        vernacularName: name,
+        scientificName: "",
+        emoji: "💎",
+      }))
+      .slice(0, limit);
+  }
+
+  return [];
+}
+
 export function getAnimalGroupEmoji(group?: string | null) {
   if (!group) return "🐾";
   return GROUP_EMOJIS[normalizeSpeciesText(group)] ?? "🐾";

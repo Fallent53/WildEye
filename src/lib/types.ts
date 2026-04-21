@@ -4,23 +4,6 @@ export type SortOrder = "newest" | "oldest";
 export type TimeRangeFilter = "day" | "week" | "month" | "year" | "five-years" | "all";
 export type ObservationVisibility = "public" | "private";
 export type ObservationPrivacyLevel = "standard" | "protected";
-export type SpeciesProposalStatus = "pending" | "approved" | "merged" | "rejected";
-
-export interface LocalizedText {
-  fr: string;
-  en?: string;
-}
-
-export interface SpeciesProposal {
-  id: string;
-  created_at: string;
-  proposed_name: string;
-  category: Category;
-  note?: string;
-  nearby_existing_name?: string;
-  status: SpeciesProposalStatus;
-  submitted_by: string;
-}
 
 export interface UserProfile {
   id: string;

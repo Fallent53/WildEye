@@ -7,11 +7,11 @@ import { Category } from "@/lib/types";
 import {
   findBestAnimalSuggestion,
   findAnimalSpecies,
-  getAnimalSuggestions,
+  getSpeciesSuggestions,
   standardizeAnimalSpecies,
 } from "@/lib/species-catalog";
 import { validateContent } from "@/lib/moderation";
-import { searchSpecies, RemoteTaxon } from "@/lib/nature-api";
+import { searchSpecies, searchMinerals, RemoteTaxon, RemoteMineral } from "@/lib/nature-api";
 import { getEmojiFromHierarchy } from "@/lib/taxon-icons";
 import styles from "./AddObservationPanel.module.css";
 
@@ -26,7 +26,6 @@ function inputDateToIso(value: string) {
 export default function AddObservationPanel() {
   const newObservationCoords = useAppStore((s) => s.newObservationCoords);
   const addObservation = useAppStore((s) => s.addObservation);
-  const addSpeciesProposal = useAppStore((s) => s.addSpeciesProposal);
   const cancelAddObservation = useAppStore((s) => s.cancelAddObservation);
   const userProfile = useAppStore((s) => s.userProfile);
   const openAccountPanel = useAppStore((s) => s.openAccountPanel);
@@ -40,50 +39,68 @@ export default function AddObservationPanel() {
   const [hardness, setHardness] = useState("");
   const [associatedMinerals, setAssociatedMinerals] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [proposalSent, setProposalSent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasValidMatch, setHasValidMatch] = useState(false);
 
   // Search states
   const [remoteSuggestions, setRemoteSuggestions] = useState<RemoteTaxon[]>([]);
+  const [remoteMinerals, setRemoteMinerals] = useState<RemoteMineral[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const selectedRemoteTaxon = useRef<RemoteTaxon | null>(null);
+  const selectedRemoteMineral = useRef<RemoteMineral | null>(null);
 
-  const animalSuggestions = category === "faune" ? getAnimalSuggestions(speciesName) : [];
+  const suggestions = getSpeciesSuggestions(category, speciesName);
   const trimmedSpeciesName = speciesName.trim();
   const exactAnimalMatch =
     category === "faune"
       ? findAnimalSpecies(trimmedSpeciesName)
       : undefined;
-  const canProposeSpecies =
-    trimmedSpeciesName.length >= 2 &&
-    (category !== "faune" || (!exactAnimalMatch && animalSuggestions.length === 0 && remoteSuggestions.length === 0));
 
   // Debounced Remote Search
   useEffect(() => {
-    if (category !== "faune" || trimmedSpeciesName.length < 3) {
+    if (trimmedSpeciesName.length < 3) {
       setRemoteSuggestions([]);
+      setRemoteMinerals([]);
       return;
     }
 
     const timer = setTimeout(async () => {
       setIsSearching(true);
-      const results = await searchSpecies(trimmedSpeciesName);
-      setRemoteSuggestions(results);
+      if (category === "faune" || category === "flore") {
+        const results = await searchSpecies(trimmedSpeciesName, category);
+        setRemoteSuggestions(results);
+        setRemoteMinerals([]);
+      } else if (category === "cristal") {
+        const results = await searchMinerals(trimmedSpeciesName);
+        setRemoteMinerals(results);
+        setRemoteSuggestions([]);
+      }
       setIsSearching(false);
     }, 500);
 
     return () => clearTimeout(timer);
   }, [category, trimmedSpeciesName]);
 
-  const selectAnimalSuggestion = (vernacularName: string) => {
+  const selectSuggestion = (vernacularName: string) => {
     setSpeciesName(vernacularName);
+    setHasValidMatch(true);
     selectedRemoteTaxon.current = null;
   };
 
   const selectRemoteSuggestion = (taxon: RemoteTaxon) => {
     setSpeciesName(taxon.preferred_common_name || taxon.name);
+    setHasValidMatch(true);
     selectedRemoteTaxon.current = taxon;
+    selectedRemoteMineral.current = null;
     setRemoteSuggestions([]);
+  };
+
+  const selectRemoteMineral = (mineral: RemoteMineral) => {
+    setSpeciesName(mineral.label);
+    setHasValidMatch(true);
+    selectedRemoteMineral.current = mineral;
+    selectedRemoteTaxon.current = null;
+    setRemoteMinerals([]);
   };
 
   const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,31 +114,15 @@ export default function AddObservationPanel() {
     reader.readAsDataURL(file);
   };
 
-  const handleSpeciesProposal = () => {
-    if (!canProposeSpecies) return;
 
-    const vName = validateContent(trimmedSpeciesName);
-    const vDesc = validateContent(description);
-
-    if (!vName.isValid || !vDesc.isValid) {
-      alert(`Contenu inapproprié détecté (${[...vName.foundWords, ...vDesc.foundWords].join(", ")}). Merci de rester respectueux.`);
-      return;
-    }
-
-    const nearbyExisting = category === "faune" ? findBestAnimalSuggestion(trimmedSpeciesName) : undefined;
-
-    addSpeciesProposal({
-      proposed_name: trimmedSpeciesName,
-      category,
-      note: description.trim() || undefined,
-      nearby_existing_name: nearbyExisting?.vernacularName,
-    });
-    setProposalSent(true);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!speciesName.trim() || !observedDate || !newObservationCoords) return;
+    if (!hasValidMatch) {
+        alert("Merci de sélectionner une espèce ou un minéral dans la liste suggérée.");
+        return;
+    }
 
     const vName = validateContent(speciesName);
     const vDesc = validateContent(description);
@@ -133,6 +134,7 @@ export default function AddObservationPanel() {
 
     // Determine details from remote taxon if selected, otherwise try local
     const remote = selectedRemoteTaxon.current;
+    const remoteMineral = selectedRemoteMineral.current;
     
     const animalMatch =
       category === "faune"
@@ -166,15 +168,22 @@ export default function AddObservationPanel() {
         activity_hint: category === "faune" ? (animalMatch as any).activityHint : undefined,
         sensitivity_label: category === "faune" ? (animalMatch as any).sensitivityLabel : undefined,
         family: category === "faune" ? animalMatch?.family : undefined,
-        quality_label: remote ? "Donnée Mondiale (iNaturalist)" : "Contribution locale",
+        quality_label: remote 
+            ? "Donnée Mondiale (iNaturalist)" 
+            : remoteMineral 
+                ? "Donnée Mondiale (Wikidata)" 
+                : "Contribution locale",
         verification_label: remote 
           ? "Espèce vérifiée via le catalogue mondial iNaturalist." 
-          : "Observation partagée par un membre, non validée par une source externe.",
+          : remoteMineral
+            ? "Minéral validé via la base de connaissances mondiale Wikidata."
+            : "Observation partagée par un membre, non validée par une source externe.",
         description: description.trim() || `Observation de ${normalizedName}.`,
         longitude: newObservationCoords.lng,
         latitude: newObservationCoords.lat,
         // Use remote photo if user didn't upload one
-        photo_url: photoUrl || (animalMatch as any).photoUrl || null,
+        photo_url: photoUrl || (animalMatch as any).photoUrl || (remote as any)?.default_photo?.medium_url || null,
+        source_url: remoteMineral?.url,
         crystal_system: category === "cristal" ? crystalSystem : undefined,
         luster: category === "cristal" ? luster : undefined,
         hardness: category === "cristal" ? hardness : undefined,
@@ -190,9 +199,10 @@ export default function AddObservationPanel() {
       setPhotoUrl(null);
       setObservedDate(getTodayInputValue());
       setCategory("faune");
-      setProposalSent(false);
+      setHasValidMatch(false);
       setIsSubmitting(false);
       selectedRemoteTaxon.current = null;
+      selectedRemoteMineral.current = null;
     }, 400);
   };
 
@@ -245,6 +255,8 @@ export default function AddObservationPanel() {
                     onClick={() => {
                         setCategory(cat);
                         setRemoteSuggestions([]);
+                        setRemoteMinerals([]);
+                        setHasValidMatch(false);
                     }}
                     style={
                       {
@@ -280,31 +292,36 @@ export default function AddObservationPanel() {
                 value={speciesName}
                 onChange={(e) => {
                   setSpeciesName(e.target.value);
-                  setProposalSent(false);
+                  setHasValidMatch(false);
                   if (selectedRemoteTaxon.current && e.target.value !== (selectedRemoteTaxon.current.preferred_common_name || selectedRemoteTaxon.current.name)) {
                       selectedRemoteTaxon.current = null;
+                  }
+                  if (selectedRemoteMineral.current && e.target.value !== selectedRemoteMineral.current.label) {
+                      selectedRemoteMineral.current = null;
                   }
                 }}
                 autoFocus
                 required
               />
-              {(animalSuggestions.length > 0 || remoteSuggestions.length > 0 || isSearching) && (
+              {(suggestions.length > 0 || remoteSuggestions.length > 0 || remoteMinerals.length > 0 || isSearching) && (
                 <div className={styles.suggestionList}>
-                  {animalSuggestions.length > 0 && (
+                  {suggestions.length > 0 && (
                     <>
                       <div className={styles.suggestionSectionTitle}>Catalogue Local</div>
-                      {animalSuggestions.map((species) => (
+                      {suggestions.map((species) => (
                         <button
-                          key={species.scientificName}
+                          key={species.scientificName || species.vernacularName}
                           type="button"
                           className={styles.suggestionItem}
                           onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => selectAnimalSuggestion(species.vernacularName)}
+                          onClick={() => selectSuggestion(species.vernacularName)}
                         >
                           <div className={styles.suggestionIcon}>{species.emoji}</div>
                           <div className={styles.suggestionContent}>
                             <span className={styles.suggestionMain}>{species.vernacularName}</span>
-                            <span className={styles.suggestionSub}>{species.scientificName}</span>
+                            {species.scientificName && (
+                              <span className={styles.suggestionSub}>{species.scientificName}</span>
+                            )}
                           </div>
                         </button>
                       ))}
@@ -313,7 +330,9 @@ export default function AddObservationPanel() {
 
                   {remoteSuggestions.length > 0 && (
                     <>
-                      <div className={styles.suggestionSectionTitle}>Recherche Mondiale</div>
+                      <div className={styles.suggestionSectionTitle}>
+                        Recherche Mondiale ({category === 'flore' ? 'Végétaux & Champignons' : 'Faune'})
+                      </div>
                       {remoteSuggestions.map((taxon) => (
                         <button
                           key={taxon.id}
@@ -325,7 +344,10 @@ export default function AddObservationPanel() {
                           {taxon.default_photo ? (
                             <img src={taxon.default_photo.square_url} className={styles.suggestionThumb} alt="" />
                           ) : (
-                            <div className={styles.suggestionIcon}>🍃</div>
+                            <div className={styles.suggestionIcon}>
+                                {taxon.iconic_taxon_name === 'Plantae' ? '🌿' : 
+                                 taxon.iconic_taxon_name === 'Fungi' ? '🍄' : '🍃'}
+                            </div>
                           )}
                           <div className={styles.suggestionContent}>
                             <span className={styles.suggestionMain}>{taxon.preferred_common_name || taxon.name}</span>
@@ -334,6 +356,29 @@ export default function AddObservationPanel() {
                           <span className={styles.suggestionMeta}>
                             {getEmojiFromHierarchy(taxon.name, taxon.ancestors, taxon.preferred_common_name)}
                           </span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {remoteMinerals.length > 0 && (
+                    <>
+                      <div className={styles.suggestionSectionTitle}>Recherche Mondiale (Minéraux)</div>
+                      {remoteMinerals.map((mineral) => (
+                        <button
+                          key={mineral.id}
+                          type="button"
+                          className={styles.suggestionItem}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectRemoteMineral(mineral)}
+                        >
+                          <div className={styles.suggestionIcon}>💎</div>
+                          <div className={styles.suggestionContent}>
+                            <span className={styles.suggestionMain}>{mineral.label}</span>
+                            {mineral.description && (
+                                <span className={styles.suggestionSub}>{mineral.description}</span>
+                            )}
+                          </div>
                         </button>
                       ))}
                     </>
@@ -348,19 +393,7 @@ export default function AddObservationPanel() {
                 </div>
               )}
             </div>
-            {canProposeSpecies && (
-              <div className={styles.speciesProposalBox}>
-                <span>Introuvable dans le catalogue ?</span>
-                <button
-                  type="button"
-                  className={styles.proposalBtn}
-                  onClick={handleSpeciesProposal}
-                  disabled={proposalSent}
-                >
-                  {proposalSent ? "Proposition envoyée" : "Ajouter une espèce"}
-                </button>
-              </div>
-            )}
+
           </div>
 
           {/* Description */}
@@ -507,7 +540,7 @@ export default function AddObservationPanel() {
           <button
             type="submit"
             className={styles.submitBtn}
-            disabled={!speciesName.trim() || !observedDate || isSubmitting}
+            disabled={!hasValidMatch || !observedDate || isSubmitting}
           >
             {isSubmitting ? (
               <>

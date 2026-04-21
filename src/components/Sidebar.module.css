@@ -848,57 +848,6 @@
   margin-top: 2px;
 }
 
-.proposalAdminBox {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-  background: rgba(52, 211, 153, 0.06);
-  border: 1px solid rgba(52, 211, 153, 0.16);
-  border-radius: var(--radius-md);
-}
-
-.proposalAdminBox h3 {
-  font-size: 12px;
-  color: var(--color-emerald);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.proposalAdminItem {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  padding: 8px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-}
-
-.proposalAdminItem div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.proposalAdminItem strong {
-  color: var(--color-text-primary);
-  font-size: 13px;
-}
-
-.proposalAdminItem span,
-.proposalAdminItem em {
-  color: var(--color-text-muted);
-  font-size: 11px;
-  font-style: normal;
-}
-
-.proposalAdminItem em {
-  flex: 0 0 auto;
-  color: var(--color-sky);
-}
-
 .controlGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
