@@ -14,6 +14,7 @@ import {
 import { generateDemoData } from "./demo-data";
 import { fetchAllExternalObservations } from "./external-data";
 import { getExternalDateRange } from "./time-range";
+import { supabase } from "./supabase";
 
 let externalLoadRequestId = 0;
 const SPECIES_PROPOSALS_STORAGE_KEY = "wildeye_species_proposals";
@@ -209,6 +210,11 @@ export const useAppStore = create<AppState>((set) => ({
       selectedObservation: newObs,
       newObservationCoords: null,
     }));
+
+    // Async persist to Supabase
+    supabase.from("observations").insert([newObs]).then(({ error }) => {
+      if (error) console.error("Error persisting observation:", error);
+    });
   },
 
   addSpeciesProposal: (data) => {
@@ -225,6 +231,11 @@ export const useAppStore = create<AppState>((set) => ({
       writeStoredSpeciesProposals(speciesProposals);
       return { speciesProposals };
     });
+
+    // Async persist to Supabase
+    supabase.from("species_proposals").insert([proposal]).then(({ error }) => {
+      if (error) console.error("Error persisting proposal:", error);
+    });
   },
 
   deleteObservation: (id) =>
@@ -233,6 +244,13 @@ export const useAppStore = create<AppState>((set) => ({
       const nextObservations = state.observations.filter((obs) => obs.id !== id);
       const selectedObservation =
         state.selectedObservation?.id === id ? null : state.selectedObservation;
+
+      // Async delete from Supabase if it's a local observation
+      if (state.observations.find(o => o.id === id && o.user_id === "local-user")) {
+        supabase.from("observations").delete().eq("id", id).then(({ error }) => {
+          if (error) console.error("Error deleting observation:", error);
+        });
+      }
 
       return {
         observations: nextObservations,
@@ -313,50 +331,53 @@ export const useAppStore = create<AppState>((set) => ({
     const timeRange = useAppStore.getState().timeRange;
     set({ isLoading: true });
     try {
-      const external = await fetchAllExternalObservations({
+      // Fetch from API
+      const externalTask = fetchAllExternalObservations({
         gbifLimit: 1200,
         inatLimit: 1200,
         obisLimit: 800,
         dateRange: getExternalDateRange(timeRange),
       });
 
+      // Fetch from Supabase
+      const internalTask = supabase
+        .from("observations")
+        .select("*")
+        .order("observed_at", { ascending: false });
+
+      const proposalsTask = supabase
+        .from("species_proposals")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      const [external, { data: internal, error: internalError }, { data: proposals, error: proposalsError }] = await Promise.all([
+        externalTask,
+        internalTask,
+        proposalsTask,
+      ]);
+
+      if (internalError) console.error("Error fetching internal observations:", internalError);
+      if (proposalsError) console.error("Error fetching proposals:", proposalsError);
+      
+      const internalResults = (internal || []) as Observation[];
+      const proposalsResults = (proposals || []) as SpeciesProposal[];
+
       if (requestId !== externalLoadRequestId) return;
 
-      if (external.length > 0) {
-        set((state) => {
-          // Keep user-added observations (local ones)
-          const userObs = state.observations.filter((o) => o.user_id === "local-user");
-          return {
-            observations: [...userObs, ...external].sort(
-              (a, b) =>
-                new Date(b.observed_at).getTime() -
-                new Date(a.observed_at).getTime()
-            ),
-            isLoading: false,
-            dataSource: userObs.length > 0 ? "mixed" : "external",
-          };
-        });
-      } else {
-        set((state) => {
-          const userObs = state.observations.filter((o) => o.user_id === "local-user");
-          return {
-            observations: userObs,
-            isLoading: false,
-            dataSource: userObs.length > 0 ? "mixed" : "external",
-          };
-        });
-      }
-    } catch {
-      if (requestId !== externalLoadRequestId) return;
+      const combined = [...internalResults, ...external].sort(
+        (a, b) => new Date(b.observed_at).getTime() - new Date(a.observed_at).getTime()
+      );
 
-      set((state) => {
-        const userObs = state.observations.filter((o) => o.user_id === "local-user");
-        return {
-          observations: userObs,
-          isLoading: false,
-          dataSource: userObs.length > 0 ? "mixed" : "external",
-        };
-      });
+      set((state) => ({
+        observations: combined,
+        speciesProposals: proposalsResults.length > 0 ? proposalsResults : state.speciesProposals,
+        isLoading: false,
+        dataSource: combined.length > 0 ? "mixed" : "external",
+      }));
+    } catch (err) {
+      console.error("Error loading combined data:", err);
+      if (requestId !== externalLoadRequestId) return;
+      set({ isLoading: false });
     }
   },
 
