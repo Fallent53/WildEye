@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import type { Metadata } from "next";
 import "./globals.css";
 

@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 .main {
   position: relative;
   width: 100vw;
@@ -86,6 +87,24 @@
   font-weight: 800;
 }
 
+.siteCredit {
+  position: fixed;
+  left: 420px;
+  bottom: 8px;
+  z-index: var(--z-toast);
+  padding: 4px 8px;
+  color: rgba(245, 247, 250, 0.74);
+  background: rgba(18, 30, 24, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -93,6 +112,7 @@
 }
 
 @media (max-width: 768px) {
+
   /* Support button smaller, tucked top-right but avoid search bar */
   .supportButton {
     top: auto;
@@ -108,6 +128,16 @@
     width: 18px;
     height: 18px;
     font-size: 11px;
+  }
+
+  .siteCredit {
+    top: 108px;
+    right: 12px;
+    bottom: auto;
+    left: auto;
+    max-width: calc(100vw - 24px);
+    font-size: 9px;
+    opacity: 0.86;
   }
 
   /* Watermark stays at top center on mobile (below search bar) */

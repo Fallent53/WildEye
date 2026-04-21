@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import { Category } from "./types";
 
 export type SpeciesLocale = "fr" | "en";

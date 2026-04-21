@@ -1,9 +1,8 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 /**
  * WildEye Moderation & Safety
- * Tools for content filtering and admin authentication
+ * Tools for content filtering.
  */
-
-export const ADMIN_PASSCODE = "bananier53";
 
 const FORBIDDEN_WORDS = [
   // French (common)

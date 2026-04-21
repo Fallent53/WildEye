@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 "use client";
 
 import { useDeferredValue, useMemo, useRef } from "react";
@@ -537,7 +538,7 @@ export default function Sidebar() {
   // ── Explore View (default) ──
   return (
     <>
-      <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.open : styles.closed}`}>
+      <aside className={`${styles.sidebar} ${styles.exploreSidebar} ${isSidebarOpen ? styles.open : styles.closed}`}>
         {/* Toggle / Drag handle */}
         <button
           className={styles.toggleBtn}
@@ -633,7 +634,7 @@ export default function Sidebar() {
         </div>
 
         {/* Observations List */}
-        <div className={styles.listSection}>
+        <div className={`${styles.listSection} ${styles.exploreListSection}`}>
           <div className={styles.listHeader}>
             <h2 className={styles.listTitle}>Observations récentes</h2>
             <div className={styles.listTools}>

@@ -2,11 +2,13 @@
   "name": "wildeye",
   "version": "0.1.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "admin:passcode": "node scripts/generate-admin-passcode.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",

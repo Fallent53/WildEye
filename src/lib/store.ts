@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import { create } from "zustand";
 import {
   Category,
@@ -100,8 +101,9 @@ interface AppState {
   startAddObservation: () => void;
   loadDemoData: () => void;
   loadExternalData: () => Promise<void>;
-  adminLogin: (passcode: string) => boolean;
-  adminLogout: () => void;
+  adminLogin: (passcode: string) => Promise<boolean>;
+  adminLogout: () => Promise<void>;
+  refreshAdminSession: () => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -239,9 +241,14 @@ export const useAppStore = create<AppState>((set) => ({
       const selectedObservation =
         state.selectedObservation?.id === id ? null : state.selectedObservation;
 
-      // Persist deletion to Supabase IF it's a local observation AND (User owns it OR User is Admin)
-      if (targetObs && targetObs.source_kind === "local") {
-        if (state.isAdmin || targetObs.user_id === state.userProfile.id) {
+      if (targetObs) {
+        if (state.isAdmin && targetObs.user_id !== state.userProfile.id) {
+          fetch(`/api/admin/observations/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          }).then((response) => {
+            if (!response.ok) console.error("Error deleting observation as admin.");
+          });
+        } else if (targetObs.source_kind === "local" && targetObs.user_id === state.userProfile.id) {
           supabase
             .from("observations")
             .delete()
@@ -372,13 +379,34 @@ export const useAppStore = create<AppState>((set) => ({
     }
   },
 
-  adminLogin: (passcode: string) => {
-    if (passcode === "bananier53") {
+  adminLogin: async (passcode: string) => {
+    const response = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode }),
+    });
+
+    if (response.ok) {
       set({ isAdmin: true });
       return true;
     }
+
+    set({ isAdmin: false });
     return false;
   },
 
-  adminLogout: () => set({ isAdmin: false }),
+  adminLogout: async () => {
+    await fetch("/api/admin/logout", { method: "POST" });
+    set({ isAdmin: false });
+  },
+
+  refreshAdminSession: async () => {
+    const response = await fetch("/api/admin/session", { cache: "no-store" });
+    if (!response.ok) {
+      set({ isAdmin: false });
+      return;
+    }
+    const data = (await response.json()) as { isAdmin?: boolean };
+    set({ isAdmin: Boolean(data.isAdmin) });
+  },
 }));

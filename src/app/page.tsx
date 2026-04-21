@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 "use client";
 
 import { useEffect } from "react";
@@ -12,10 +13,10 @@ function AdminLogin() {
   const adminLogin = useAppStore((s) => s.adminLogin);
   const adminLogout = useAppStore((s) => s.adminLogout);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     const pass = prompt("Entrez le code d'administration :");
     if (pass) {
-      if (!adminLogin(pass)) {
+      if (!(await adminLogin(pass))) {
         alert("Code incorrect.");
       }
     }
@@ -44,10 +45,15 @@ export default function Home() {
   const setFlyTo = useAppStore((s) => s.setFlyTo);
   const startAddObservation = useAppStore((s) => s.startAddObservation);
   const isAddingObservation = useAppStore((s) => s.isAddingObservation);
+  const refreshAdminSession = useAppStore((s) => s.refreshAdminSession);
 
   useEffect(() => {
     loadExternalData();
   }, [loadExternalData, timeRange]);
+
+  useEffect(() => {
+    refreshAdminSession();
+  }, [refreshAdminSession]);
 
   return (
     <main className={styles.main} id="wildeye-app">
@@ -95,6 +101,8 @@ export default function Home() {
           </>
         )}
       </div>
+
+      <footer className={styles.siteCredit}>Designed &amp; Developed by Loris Dc</footer>
 
       <AdminLogin />
     </main>

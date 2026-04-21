@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 "use client";
 
 import { useEffect, useRef, useCallback, useMemo, useDeferredValue } from "react";

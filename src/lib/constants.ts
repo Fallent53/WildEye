@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import { getTaxonEmoji } from "./taxon-icons";
 import { Category, Observation } from "./types";
 

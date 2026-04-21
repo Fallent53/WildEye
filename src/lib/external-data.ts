@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 /**
  * ═══════════════════════════════════════════════════════════
  * WildEye — External Data Sources

@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {

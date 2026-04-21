@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import { getObservationEmoji } from "./constants";
 import { Category, Observation } from "./types";
 

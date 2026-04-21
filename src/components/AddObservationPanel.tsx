@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 "use client";
 
 import { useEffect, useState, useRef } from "react";

@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 /**
  * Service to interact with the iNaturalist and Wikidata APIs.
  */

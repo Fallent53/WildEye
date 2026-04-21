@@ -1,3 +1,4 @@
+/* (c) 2024 - Loris Dc - WildEye Project */
 import { Locale, LocalizedText } from "./types";
 
 export const DEFAULT_LOCALE: Locale = "fr";

@@ -1,5 +1,32 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## License
+
+WildEye is copyright (c) 2024 Loris Dc.
+
+This project is licensed under the GNU Affero General Public License version 3
+(`AGPL-3.0-only`). If someone modifies the project and runs it as a network
+service, the AGPLv3 requires them to offer the corresponding source code to the
+users of that service.
+
+The attribution notice `Designed & Developed by Loris Dc` must be preserved in
+the interactive interface or equivalent legal notices. See `LICENSE` and
+`NOTICE.md` for details.
+
+## Admin passcode
+
+The admin passcode is never checked in browser code. It is verified by
+`/api/admin/login` against the `public.admin_passcodes` table.
+
+To create a new admin passcode hash:
+
+```bash
+npm run admin:passcode -- "your-new-passcode"
+```
+
+Run the generated SQL in Supabase after applying the migrations. Use a new
+passcode if an older one was exposed in client code.
+
 ## Getting Started
 
 First, run the development server:
