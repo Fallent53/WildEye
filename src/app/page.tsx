@@ -1,66 +1,95 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect } from "react";
+import { useAppStore } from "@/lib/store";
+import Map from "@/components/Map";
+import Sidebar from "@/components/Sidebar";
+import LocationHeader from "@/components/LocationHeader";
 import styles from "./page.module.css";
 
-export default function Home() {
+function AdminLogin() {
+  const isAdmin = useAppStore((s) => s.isAdmin);
+  const adminLogin = useAppStore((s) => s.adminLogin);
+  const adminLogout = useAppStore((s) => s.adminLogout);
+
+  const handleLogin = () => {
+    const pass = prompt("Entrez le code d'administration :");
+    if (pass) {
+      if (!adminLogin(pass)) {
+        alert("Code incorrect.");
+      }
+    }
+  };
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className={styles.adminControl}>
+      {isAdmin ? (
+        <button onClick={adminLogout} className={styles.adminBtn}>
+          Mode Admin (Déconnexion)
+        </button>
+      ) : (
+        <button onClick={handleLogin} className={styles.adminBtn}>
+          Connexion Admin
+        </button>
+      )}
     </div>
+  );
+}
+
+export default function Home() {
+  const loadExternalData = useAppStore((s) => s.loadExternalData);
+  const isLoading = useAppStore((s) => s.isLoading);
+  const dataSource = useAppStore((s) => s.dataSource);
+  const timeRange = useAppStore((s) => s.timeRange);
+
+  useEffect(() => {
+    loadExternalData();
+  }, [loadExternalData, timeRange]);
+
+  return (
+    <main className={styles.main} id="wildeye-app">
+      <Map />
+      <LocationHeader />
+      <Sidebar />
+
+      <a
+        className={styles.supportButton}
+        href="https://buymeacoffee.com/lorisdc"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <span className={styles.supportIcon}>€</span>
+        <span>Soutenez-moi</span>
+      </a>
+
+      {/* Data source indicator */}
+      <div className={styles.watermark}>
+        {isLoading ? (
+          <>
+            <span className={styles.watermarkSpinner} />
+            Chargement des sources ouvertes…
+          </>
+        ) : (
+          <>
+            <span
+              className={styles.watermarkDot}
+              style={{
+                background:
+                  dataSource === "external"
+                    ? "#34d399"
+                    : dataSource === "mixed"
+                      ? "#fbbf24"
+                      : "#a78bfa",
+              }}
+            />
+            {dataSource === "mixed"
+              ? "Échantillon réel mondial + contributions"
+              : "Échantillon réel mondial — GBIF + iNaturalist + OBIS"}
+          </>
+        )}
+      </div>
+
+      <AdminLogin />
+    </main>
   );
 }

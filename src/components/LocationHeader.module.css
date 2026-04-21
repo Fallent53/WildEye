@@ -1,0 +1,96 @@
+.locationHeader {
+  position: fixed;
+  top: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-panel);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px;
+  background: var(--color-bg-card);
+  backdrop-filter: blur(18px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.selectWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: 38px;
+  padding: 0 var(--space-sm);
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.locationSelect {
+  min-width: 154px;
+  height: 100%;
+  color: var(--color-text-primary);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.locationSelect option {
+  color: #0a0f0d;
+  background: #f7fbf9;
+}
+
+.placeBtn {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0 14px;
+  color: var(--color-bg-primary);
+  background: var(--color-emerald);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.placeBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(52, 211, 153, 0.28);
+}
+
+@media (max-width: 768px) {
+  .locationHeader {
+    top: var(--space-sm);
+    width: calc(100% - var(--space-md) * 2);
+  }
+
+  .selectWrap {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .locationSelect {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .placeBtn {
+    width: 38px;
+    padding: 0;
+  }
+
+  .placeBtn svg {
+    flex: 0 0 auto;
+  }
+
+  .placeBtn {
+    font-size: 0;
+    gap: 0;
+  }
+}
