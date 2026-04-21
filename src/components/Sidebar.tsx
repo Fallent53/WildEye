@@ -212,17 +212,19 @@ export default function Sidebar() {
   const setObservationVisibility = useAppStore((s) => s.setObservationVisibility);
   const setObservationAnonymous = useAppStore((s) => s.setObservationAnonymous);
   const setObservationPrivacyLevel = useAppStore((s) => s.setObservationPrivacyLevel);
+  const userProfile = useAppStore((s) => s.userProfile);
+  const setUserProfile = useAppStore((s) => s.setUserProfile);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
 
   const publicObservations = useMemo(
-    () => observations.filter((obs) => obs.visibility !== "private" || obs.user_id !== "local-user"),
-    [observations]
+    () => observations.filter((obs) => obs.visibility !== "private" || obs.user_id === userProfile.id),
+    [observations, userProfile.id]
   );
 
   const myObservations = useMemo(
-    () => sortObservations(observations.filter((obs) => obs.user_id === "local-user"), sortOrder),
-    [observations, sortOrder]
+    () => sortObservations(observations.filter((obs) => obs.user_id === userProfile.id), sortOrder),
+    [observations, sortOrder, userProfile.id]
   );
 
   const filteredObs = useMemo(
@@ -276,12 +278,28 @@ export default function Sidebar() {
             <UserIcon />
           </div>
           <div>
-            <h2 className={styles.accountTitle}>Mes observations</h2>
+            <h2 className={styles.accountTitle}>Mon Profil</h2>
             <p className={styles.accountSubtitle}>
               {myObservations.length} contribution{myObservations.length > 1 ? "s" : ""}
             </p>
           </div>
         </div>
+
+        <div className={styles.profileSection}>
+          <label htmlFor="user-pseudo" className={styles.profileLabel}>Votre pseudonyme (public)</label>
+          <div className={styles.profileInputWrapper}>
+            <input
+              id="user-pseudo"
+              type="text"
+              className={styles.profileInput}
+              value={userProfile.name}
+              onChange={(e) => setUserProfile({ name: e.target.value })}
+              placeholder="ex: Explorateur_73"
+            />
+          </div>
+          <p className={styles.profileHint}>Ce nom sera affiché sur toutes vos observations publiques.</p>
+        </div>
+
         <div className={styles.accountNotice}>
           <ShieldIcon />
           <span>Vous pouvez masquer, anonymiser ou rendre plus imprécises vos contributions sensibles.</span>
@@ -324,7 +342,7 @@ export default function Sidebar() {
   if (selectedObservation) {
     const obs = selectedObservation;
     const cfg = CATEGORY_CONFIG[obs.category];
-    const isOwnObservation = obs.user_id === "local-user";
+    const isOwnObservation = obs.user_id === userProfile.id;
     const emoji = getObservationEmoji(obs);
     const displayName = obs.common_name ?? obs.species_name;
     return (

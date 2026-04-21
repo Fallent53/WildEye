@@ -9,6 +9,7 @@ import {
   SortOrder,
   SpeciesProposal,
   TimeRangeFilter,
+  UserProfile,
   ViewState,
 } from "./types";
 import { generateDemoData } from "./demo-data";
@@ -38,6 +39,35 @@ function writeStoredSpeciesProposals(proposals: SpeciesProposal[]) {
   }
 }
 
+const USER_PROFILE_STORAGE_KEY = "wildeye_user_profile";
+
+function readStoredUserProfile(): UserProfile {
+  if (typeof window === "undefined") {
+    return { id: "local-user", name: "Explorateur Anonyme" };
+  }
+  try {
+    const stored = window.localStorage.getItem(USER_PROFILE_STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as UserProfile;
+    
+    // Generate new profile
+    const newProfile: UserProfile = {
+      id: `user-${Date.now()}-${Math.floor(Math.random() * 1000000)}`,
+      name: "Explorateur Anonyme",
+    };
+    window.localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(newProfile));
+    return newProfile;
+  } catch {
+    return { id: "local-user", name: "Explorateur Anonyme" };
+  }
+}
+
+function writeStoredUserProfile(profile: UserProfile) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(USER_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+  } catch {}
+}
+
 interface AppState {
   /* ── Data ─────────────────────────── */
   observations: Observation[];
@@ -47,6 +77,7 @@ interface AppState {
   dataSource: "demo" | "external" | "mixed";
   locale: Locale;
   isAdmin: boolean;
+  userProfile: UserProfile;
 
   /* ── Filters ──────────────────────── */
   filters: FilterState;
@@ -74,6 +105,7 @@ interface AppState {
   setTimeRange: (range: TimeRangeFilter) => void;
   setSortOrder: (order: SortOrder) => void;
   setViewState: (vs: Partial<ViewState>) => void;
+  setUserProfile: (profile: Partial<UserProfile>) => void;
   toggleSidebar: () => void;
   openSidebar: () => void;
   setActivePanel: (panel: "explore" | "add" | "detail" | "account" | null) => void;
@@ -101,6 +133,7 @@ export const useAppStore = create<AppState>((set) => ({
   observations: [],
   selectedObservation: null,
   speciesProposals: readStoredSpeciesProposals(),
+  userProfile: readStoredUserProfile(),
   isLoading: false,
   dataSource: "demo" as const,
   locale: "fr",
@@ -155,7 +188,12 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       viewState: { ...state.viewState, ...vs },
     })),
-
+  setUserProfile: (profile) =>
+    set((state) => {
+      const newUserProfile = { ...state.userProfile, ...profile };
+      writeStoredUserProfile(newUserProfile);
+      return { userProfile: newUserProfile };
+    }),
   toggleSidebar: () =>
     set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
 
@@ -189,12 +227,12 @@ export const useAppStore = create<AppState>((set) => ({
     const blurAngle = Math.random() * Math.PI * 2;
 
     const newObs: Observation = {
-      id: `user-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       created_at: new Date().toISOString(),
-      user_id: "local-user",
+      user_id: useAppStore.getState().userProfile.id,
       source_name: "Contribution locale",
       source_kind: "local",
-      observer_name: "Vous",
+      observer_name: useAppStore.getState().userProfile.name,
       visibility: "public",
       privacy_level: "standard",
       is_anonymous: false,
@@ -222,7 +260,7 @@ export const useAppStore = create<AppState>((set) => ({
       id: `species-proposal-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       created_at: new Date().toISOString(),
       status: "pending",
-      submitted_by: "local-user",
+      submitted_by: useAppStore.getState().userProfile.id,
       ...data,
     };
 
@@ -246,7 +284,7 @@ export const useAppStore = create<AppState>((set) => ({
         state.selectedObservation?.id === id ? null : state.selectedObservation;
 
       // Async delete from Supabase if it's a local observation
-      if (state.observations.find(o => o.id === id && o.user_id === "local-user")) {
+      if (state.observations.find(o => o.id === id && o.user_id === state.userProfile.id)) {
         supabase.from("observations").delete().eq("id", id).then(({ error }) => {
           if (error) console.error("Error deleting observation:", error);
         });
@@ -262,7 +300,7 @@ export const useAppStore = create<AppState>((set) => ({
   setObservationVisibility: (id, visibility) =>
     set((state) => {
       const observations = state.observations.map((obs) =>
-        obs.id === id && obs.user_id === "local-user" ? { ...obs, visibility } : obs
+        obs.id === id && obs.user_id === state.userProfile.id ? { ...obs, visibility } : obs
       );
       const selectedObservation =
         state.selectedObservation?.id === id
@@ -274,11 +312,11 @@ export const useAppStore = create<AppState>((set) => ({
   setObservationAnonymous: (id, is_anonymous) =>
     set((state) => {
       const observations = state.observations.map((obs) =>
-        obs.id === id && obs.user_id === "local-user"
+        obs.id === id && obs.user_id === state.userProfile.id
           ? {
               ...obs,
               is_anonymous,
-              observer_name: is_anonymous ? "Anonyme" : "Vous",
+              observer_name: is_anonymous ? "Anonyme" : state.userProfile.name,
             }
           : obs
       );
@@ -292,7 +330,7 @@ export const useAppStore = create<AppState>((set) => ({
   setObservationPrivacyLevel: (id, privacy_level) =>
     set((state) => {
       const observations = state.observations.map((obs) => {
-        if (obs.id !== id || obs.user_id !== "local-user") return obs;
+        if (obs.id !== id || obs.user_id !== state.userProfile.id) return obs;
 
         const blurOffset =
           privacy_level === "protected"

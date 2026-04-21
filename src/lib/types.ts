@@ -22,6 +22,11 @@ export interface SpeciesProposal {
   submitted_by: string;
 }
 
+export interface UserProfile {
+  id: string;
+  name: string;
+}
+
 export interface Observation {
   id: string;
   /** Date the observation actually happened. */

@@ -783,21 +783,77 @@
   border-radius: var(--radius-md);
 }
 
-.ownerHeader,
 .accountNotice {
-  color: var(--color-sky);
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  margin: 0 var(--space-xs) var(--space-md);
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  border-radius: var(--radius-md);
+  color: var(--color-sky-dim);
   font-size: 12px;
   line-height: 1.5;
 }
 
-.ownerHeader {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font-weight: 600;
+.accountNotice svg {
+  color: var(--color-sky);
+  flex-shrink: 0;
+  margin-top: 2px;
 }
 
-.accountNotice {
+/* ── Profile Section ────────────────────── */
+.profileSection {
+  padding: var(--space-md);
+  margin: 0 var(--space-xs) 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.profileLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.profileInputWrapper {
+  position: relative;
+}
+
+.profileInput {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.profileInput:focus {
+  border-color: var(--color-sky);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.profileHint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.ownerControls {
   flex-direction: row;
   align-items: flex-start;
 }
