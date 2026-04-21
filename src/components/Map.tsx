@@ -120,6 +120,7 @@ export default function Map() {
   const isAddingObservation = useAppStore((s) => s.isAddingObservation);
   const setNewObservationCoords = useAppStore((s) => s.setNewObservationCoords);
   const openSidebar = useAppStore((s) => s.openSidebar);
+  const isAdmin = useAppStore((s) => s.isAdmin);
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
@@ -127,7 +128,8 @@ export default function Map() {
   const filteredObservations = useMemo(
     () =>
       observations.filter((obs) => {
-        if (obs.user_id === "local-user" && obs.visibility === "private") return false;
+        const isPrivateLocal = obs.user_id === "local-user" && obs.visibility === "private";
+        if (isPrivateLocal && !isAdmin) return false;
         if (!filters[obs.category]) return false;
         if (!isObservationInTimeRange(obs, timeRange)) return false;
         if (normalizedSearchQuery) {
@@ -142,7 +144,7 @@ export default function Map() {
         }
         return true;
       }),
-    [filters, normalizedSearchQuery, observations, timeRange]
+    [filters, isAdmin, normalizedSearchQuery, observations, timeRange]
   );
 
   const observationGeoJSON = useMemo(
@@ -528,8 +530,14 @@ export default function Map() {
       // Cursor pointer on interactive layers
       const interactiveLayers = ["observation-links", "observation-zones-fill", "clusters", ...pointLayers];
       interactiveLayers.forEach((layer) => {
-        map.on("mouseenter", layer, () => { map.getCanvas().style.cursor = "pointer"; });
-        map.on("mouseleave", layer, () => { map.getCanvas().style.cursor = ""; });
+        map.on("mouseenter", layer, () => {
+          const canvas = map.getCanvas();
+          if (canvas) canvas.style.cursor = "pointer";
+        });
+        map.on("mouseleave", layer, () => {
+          const canvas = map.getCanvas();
+          if (canvas) canvas.style.cursor = "";
+        });
       });
     });
 
@@ -594,15 +602,18 @@ export default function Map() {
     const map = mapRef.current;
     if (!map || !sourceReady.current) return;
 
+    // If an observation is selected, we let the selectedObservation effect handle the movement
+    if (selectedObservation) return;
+
     map.flyTo({
       center: [viewState.longitude, viewState.latitude],
       zoom: viewState.zoom,
       pitch: viewState.pitch,
       bearing: viewState.bearing,
-      duration: 950,
+      duration: 1200, // Slightly slower than before but faster than detail
       essential: true,
     });
-  }, [viewState]);
+  }, [viewState, selectedObservation]);
 
   // Map click → set coords for new observation
   useEffect(() => {
@@ -616,11 +627,13 @@ export default function Map() {
     };
 
     map.on("click", handler);
-    map.getCanvas().style.cursor = isAddingObservation ? "crosshair" : "";
+    const canvas = map.getCanvas();
+    if (canvas) canvas.style.cursor = isAddingObservation ? "crosshair" : "";
 
     return () => {
       map.off("click", handler);
-      map.getCanvas().style.cursor = "";
+      const canvas = map.getCanvas();
+      if (canvas) canvas.style.cursor = "";
     };
   }, [isAddingObservation, setNewObservationCoords, openSidebar]);
 
