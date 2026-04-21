@@ -4,6 +4,7 @@ export type SortOrder = "newest" | "oldest";
 export type TimeRangeFilter = "day" | "week" | "month" | "year" | "five-years" | "all";
 export type ObservationVisibility = "public" | "private";
 export type ObservationPrivacyLevel = "standard" | "protected";
+export type LocalizedText = Record<Locale, string>;
 
 export interface UserProfile {
   id: string;
