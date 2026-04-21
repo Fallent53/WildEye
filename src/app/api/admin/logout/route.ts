@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { NextResponse } from "next/server";
 import { ADMIN_SESSION_COOKIE } from "@/lib/admin-auth";
 

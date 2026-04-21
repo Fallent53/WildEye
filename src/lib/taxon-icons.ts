@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { normalizeSpeciesText } from "./species-catalog";
 import { Observation } from "./types";
 

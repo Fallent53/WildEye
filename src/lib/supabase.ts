@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";

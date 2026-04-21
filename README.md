@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## License
 
-WildEye is copyright (c) 2024 Loris Dc.
+WildEye is copyright (c) 2026 Loris Dc.
 
 This project is licensed under the GNU Affero General Public License version 3
 (`AGPL-3.0-only`). If someone modifies the project and runs it as a network

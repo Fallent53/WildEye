@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { pbkdf2Sync, randomBytes } from "crypto";
 
 const passcode = process.argv[2];

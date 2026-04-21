@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { Observation, TimeRangeFilter } from "./types";
 
 export const TIME_RANGE_OPTIONS: Array<{ value: TimeRangeFilter; label: string }> = [

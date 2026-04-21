@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 import { NextResponse } from "next/server";
 import { isAdminSessionValid } from "@/lib/admin-auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";

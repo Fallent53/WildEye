@@ -1,4 +1,4 @@
-/* (c) 2024 - Loris Dc - WildEye Project */
+/* (c) 2026 - Loris Dc - WildEye Project */
 export type Category = "cristal" | "faune" | "flore";
 export type Locale = "fr" | "en";
 export type SortOrder = "newest" | "oldest";
