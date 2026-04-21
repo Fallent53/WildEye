@@ -1,71 +1,139 @@
 "use client";
 
-import { useState } from "react";
-import { useAppStore } from "@/lib/store";
+import { useState, useRef, useEffect, useCallback } from "react";
 import styles from "./LocationHeader.module.css";
 
-const LOCATION_PRESETS = [
-  { id: "france", label: "France", longitude: 2.8, latitude: 46.5, zoom: 5.4, pitch: 42, bearing: -8 },
-  { id: "world", label: "Monde", longitude: 12, latitude: 24, zoom: 1.55, pitch: 0, bearing: 0 },
-  { id: "alps", label: "Alpes", longitude: 6.55, latitude: 45.25, zoom: 7.1, pitch: 55, bearing: -12 },
-  { id: "pyrenees", label: "Pyrénées", longitude: 0.7, latitude: 42.9, zoom: 7, pitch: 50, bearing: -8 },
-  { id: "massif-central", label: "Massif central", longitude: 2.65, latitude: 45.2, zoom: 7, pitch: 45, bearing: -10 },
-  { id: "vosges", label: "Vosges", longitude: 7.03, latitude: 48.02, zoom: 8.3, pitch: 45, bearing: -8 },
-  { id: "corse", label: "Corse", longitude: 9.06, latitude: 42.08, zoom: 7.4, pitch: 50, bearing: -10 },
-  { id: "himalaya", label: "Himalaya", longitude: 86.92, latitude: 27.98, zoom: 5.4, pitch: 55, bearing: -18 },
-  { id: "andes", label: "Andes", longitude: -70.2, latitude: -32.8, zoom: 4.8, pitch: 52, bearing: 12 },
-  { id: "rockies", label: "Rocheuses", longitude: -111.6, latitude: 44.8, zoom: 5.2, pitch: 52, bearing: 10 },
-  { id: "japan", label: "Japon", longitude: 138.25, latitude: 36.2, zoom: 5.2, pitch: 45, bearing: -8 },
-];
+const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 
-export default function LocationHeader() {
-  const [selectedId, setSelectedId] = useState("france");
-  const setViewState = useAppStore((s) => s.setViewState);
-  const startAddObservation = useAppStore((s) => s.startAddObservation);
-  const isAddingObservation = useAppStore((s) => s.isAddingObservation);
+interface GeocodingFeature {
+  id: string;
+  place_name: string;
+  center: [number, number]; // [lng, lat]
+  place_type: string[];
+  context?: { id: string; text: string }[];
+}
+
+interface Props {
+  onFlyTo: (lng: number, lat: number, zoom?: number) => void;
+  onStartAddObservation: () => void;
+  isAddingObservation: boolean;
+}
+
+export default function LocationHeader({ onFlyTo, onStartAddObservation, isAddingObservation }: Props) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GeocodingFeature[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const search = useCallback(async (q: string) => {
+    if (q.trim().length < 2) {
+      setResults([]);
+      setIsOpen(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&language=fr&limit=5`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      setResults(data.features ?? []);
+      setIsOpen(true);
+    } catch {
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => search(query), 400);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [query, search]);
+
+  const handleFly = (feature: GeocodingFeature) => {
+    const [lng, lat] = feature.center;
+    // Guess a sensible zoom based on place type
+    const type = feature.place_type[0];
+    const zoom =
+      type === "country" ? 4.5 :
+      type === "region" ? 6.5 :
+      type === "district" ? 8 :
+      type === "place" ? 10 :
+      type === "locality" || type === "neighborhood" ? 12 :
+      type === "poi" ? 14 : 9;
+
+    onFlyTo(lng, lat, zoom);
+    setIsOpen(false);
+    setQuery(feature.place_name.split(",")[0]); // Keep short label
+    inputRef.current?.blur();
+  };
 
   if (isAddingObservation) return null;
 
-  const goToLocation = (id: string) => {
-    setSelectedId(id);
-    const preset = LOCATION_PRESETS.find((item) => item.id === id);
-    if (!preset) return;
-
-    setViewState({
-      longitude: preset.longitude,
-      latitude: preset.latitude,
-      zoom: preset.zoom,
-      pitch: preset.pitch,
-      bearing: preset.bearing,
-    });
-  };
-
   return (
-    <header className={styles.locationHeader} aria-label="Navigation par localisation">
-      <div className={styles.selectWrap}>
-        <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <path
-            d="M10 18C12.8 14.8 15 11.7 15 8.4C15 5.5 12.8 3.2 10 3.2C7.2 3.2 5 5.5 5 8.4C5 11.7 7.2 14.8 10 18Z"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinejoin="round"
+    <header className={styles.locationHeader} aria-label="Recherche de lieu">
+      <div className={styles.searchWrap}>
+        <div className={styles.inputWrap}>
+          <svg className={styles.searchIcon} width="15" height="15" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M13 13L17 17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <input
+            ref={inputRef}
+            id="geocoder-input"
+            type="text"
+            className={styles.searchInput}
+            placeholder="Rechercher un lieu…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => results.length > 0 && setIsOpen(true)}
+            onBlur={() => setTimeout(() => setIsOpen(false), 150)}
+            autoComplete="off"
+            aria-label="Recherche de lieu"
           />
-          <circle cx="10" cy="8.4" r="1.9" stroke="currentColor" strokeWidth="1.7" />
-        </svg>
-        <select
-          value={selectedId}
-          onChange={(event) => goToLocation(event.target.value)}
-          className={styles.locationSelect}
-          aria-label="Choisir une localisation"
-        >
-          {LOCATION_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
+          {isLoading && <span className={styles.loader} aria-hidden="true" />}
+          {query && !isLoading && (
+            <button
+              type="button"
+              className={styles.clearBtn}
+              onClick={() => { setQuery(""); setResults([]); setIsOpen(false); inputRef.current?.focus(); }}
+              aria-label="Effacer la recherche"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {isOpen && results.length > 0 && (
+          <ul className={styles.resultList} role="listbox" aria-label="Résultats de recherche">
+            {results.map((feature) => (
+              <li key={feature.id} className={styles.resultItem} role="option">
+                <span className={styles.resultLabel}>
+                  <strong>{feature.place_name.split(",")[0]}</strong>
+                  <span className={styles.resultSub}>
+                    {feature.place_name.split(",").slice(1).join(",").trim()}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className={styles.flyBtn}
+                  onClick={() => handleFly(feature)}
+                  aria-label={`Aller à ${feature.place_name}`}
+                >
+                  Aller →
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      <button type="button" className={styles.placeBtn} onClick={startAddObservation}>
+
+      <button type="button" className={styles.placeBtn} onClick={onStartAddObservation}>
         <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
           <path d="M10 4V16M4 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>

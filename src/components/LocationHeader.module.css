@@ -1,96 +1,201 @@
+/* ═══════════════════════════════════════════════════════════
+   LocationHeader — Geocoding Search Bar
+   ═══════════════════════════════════════════════════════════ */
+
 .locationHeader {
-  position: fixed;
-  top: var(--space-lg);
+  position: absolute;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: var(--z-panel);
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: 6px;
-  background: var(--color-bg-card);
-  backdrop-filter: blur(18px);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
+  gap: 10px;
+  z-index: 100;
+  pointer-events: auto;
 }
 
-.selectWrap {
+/* ── Search wrapper ─────────────────── */
+.searchWrap {
+  position: relative;
+  width: 300px;
+}
+
+.inputWrap {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  height: 38px;
-  padding: 0 var(--space-sm);
-  color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  background: rgba(12, 18, 15, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s ease;
 }
 
-.locationSelect {
-  min-width: 154px;
-  height: 100%;
-  color: var(--color-text-primary);
+.inputWrap:focus-within {
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45), 0 0 0 3px rgba(52, 211, 153, 0.1);
+}
+
+.searchIcon {
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
   background: transparent;
-  border: 0;
-  outline: 0;
-  font-size: 13px;
-  font-weight: 600;
+  color: #e8ede9;
+  font-size: 13.5px;
+  outline: none;
+  min-width: 0;
 }
 
-.locationSelect option {
-  color: #0a0f0d;
-  background: #f7fbf9;
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.35);
 }
 
-.placeBtn {
-  height: 38px;
+.loader {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #34d399;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.clearBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: 0 14px;
-  color: var(--color-bg-primary);
-  background: var(--color-emerald);
-  border-radius: var(--radius-sm);
+  width: 18px;
+  height: 18px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.clearBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* ── Results dropdown ────────────────── */
+.resultList {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: rgba(12, 18, 15, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+  list-style: none;
+  padding: 6px;
+  margin: 0;
+  backdrop-filter: blur(12px);
+  animation: fadeDown 0.15s ease;
+}
+
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.resultItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  transition: background 0.15s ease;
+}
+
+.resultItem:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.resultLabel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+
+.resultLabel strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e8ede9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flyBtn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 999px;
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.flyBtn:hover {
+  background: rgba(52, 211, 153, 0.25);
+  border-color: #34d399;
+  color: #fff;
+}
+
+/* ── Place point button ──────────────── */
+.placeBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 16px;
+  background: #34d399;
+  color: #0a0f0d;
   font-size: 13px;
   font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(52, 211, 153, 0.35);
+  transition: all 0.2s ease;
   white-space: nowrap;
-  transition: transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .placeBtn:hover {
+  background: #6ee7b7;
+  box-shadow: 0 6px 24px rgba(52, 211, 153, 0.5);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(52, 211, 153, 0.28);
-}
-
-@media (max-width: 768px) {
-  .locationHeader {
-    top: var(--space-sm);
-    width: calc(100% - var(--space-md) * 2);
-  }
-
-  .selectWrap {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .locationSelect {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .placeBtn {
-    width: 38px;
-    padding: 0;
-  }
-
-  .placeBtn svg {
-    flex: 0 0 auto;
-  }
-
-  .placeBtn {
-    font-size: 0;
-    gap: 0;
-  }
 }

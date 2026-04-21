@@ -64,6 +64,7 @@ interface AppState {
 
   /* ── Map View ─────────────────────── */
   viewState: ViewState;
+  flyToTarget: { lng: number; lat: number; zoom: number } | null;
 
   /* ── UI ────────────────────────────── */
   isSidebarOpen: boolean;
@@ -82,6 +83,7 @@ interface AppState {
   setTimeRange: (range: TimeRangeFilter) => void;
   setSortOrder: (order: SortOrder) => void;
   setViewState: (vs: Partial<ViewState>) => void;
+  setFlyTo: (target: { lng: number; lat: number; zoom: number } | null) => void;
   setUserProfile: (profile: Partial<UserProfile>) => void;
   toggleSidebar: () => void;
   openSidebar: () => void;
@@ -129,6 +131,7 @@ export const useAppStore = create<AppState>((set) => ({
   isAddingObservation: false,
   activePanel: "explore",
   newObservationCoords: null,
+  flyToTarget: null as { lng: number; lat: number; zoom: number } | null,
 
   /* ── Actions ──────────────────────── */
   setObservations: (observations) => set({ observations }),
@@ -161,6 +164,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       viewState: { ...state.viewState, ...vs },
     })),
+  setFlyTo: (flyToTarget) => set({ flyToTarget }),
   setUserProfile: (profile) =>
     set((state) => {
       const newUserProfile = { ...state.userProfile, ...profile };

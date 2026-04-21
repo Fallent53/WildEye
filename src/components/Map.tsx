@@ -116,6 +116,8 @@ export default function Map() {
   const timeRange = useAppStore((s) => s.timeRange);
   const selectObservation = useAppStore((s) => s.selectObservation);
   const viewState = useAppStore((s) => s.viewState);
+  const flyToTarget = useAppStore((s) => s.flyToTarget);
+  const setFlyTo = useAppStore((s) => s.setFlyTo);
   const searchQuery = useAppStore((s) => s.searchQuery);
   const isAddingObservation = useAppStore((s) => s.isAddingObservation);
   const setNewObservationCoords = useAppStore((s) => s.setNewObservationCoords);
@@ -164,6 +166,18 @@ export default function Map() {
   useEffect(() => {
     filteredObservationsRef.current = filteredObservations;
   }, [filteredObservations]);
+
+  // Fly to target when set via geocoder
+  useEffect(() => {
+    if (!flyToTarget || !mapRef.current) return;
+    mapRef.current.flyTo({
+      center: [flyToTarget.lng, flyToTarget.lat],
+      zoom: flyToTarget.zoom,
+      duration: 2000,
+      essential: true,
+    });
+    setFlyTo(null); // Reset after use
+  }, [flyToTarget, setFlyTo]);
 
   const findObservationById = useCallback(
     (id: string) =>

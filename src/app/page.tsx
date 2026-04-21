@@ -41,6 +41,9 @@ export default function Home() {
   const isLoading = useAppStore((s) => s.isLoading);
   const dataSource = useAppStore((s) => s.dataSource);
   const timeRange = useAppStore((s) => s.timeRange);
+  const setFlyTo = useAppStore((s) => s.setFlyTo);
+  const startAddObservation = useAppStore((s) => s.startAddObservation);
+  const isAddingObservation = useAppStore((s) => s.isAddingObservation);
 
   useEffect(() => {
     loadExternalData();
@@ -49,7 +52,11 @@ export default function Home() {
   return (
     <main className={styles.main} id="wildeye-app">
       <Map />
-      <LocationHeader />
+      <LocationHeader
+        onFlyTo={(lng, lat, zoom = 9) => setFlyTo({ lng, lat, zoom })}
+        onStartAddObservation={startAddObservation}
+        isAddingObservation={isAddingObservation}
+      />
       <Sidebar />
 
       <a
