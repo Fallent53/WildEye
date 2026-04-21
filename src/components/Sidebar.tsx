@@ -1,6 +1,6 @@
 "use client";
 
-import { useDeferredValue, useMemo } from "react";
+import { useDeferredValue, useMemo, useRef } from "react";
 import { useAppStore } from "@/lib/store";
 import { CATEGORY_CONFIG, getObservationEmoji } from "@/lib/constants";
 import { isObservationInTimeRange, TIME_RANGE_OPTIONS } from "@/lib/time-range";
@@ -215,6 +215,17 @@ export default function Sidebar() {
   const setUserProfile = useAppStore((s) => s.setUserProfile);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
+
+  // Swipe gesture for mobile bottom sheet
+  const touchStartY = useRef<number>(0);
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const delta = e.changedTouches[0].clientY - touchStartY.current;
+    if (delta < -30 && !isSidebarOpen) toggleSidebar(); // swipe up → open
+    if (delta > 30 && isSidebarOpen) toggleSidebar();   // swipe down → close
+  };
 
   const publicObservations = useMemo(
     () => observations.filter((obs) => obs.visibility !== "private" || obs.user_id === userProfile.id),
@@ -527,10 +538,12 @@ export default function Sidebar() {
   return (
     <>
       <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.open : styles.closed}`}>
-        {/* Toggle button */}
+        {/* Toggle / Drag handle */}
         <button
           className={styles.toggleBtn}
           onClick={toggleSidebar}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
           aria-label={isSidebarOpen ? "Fermer le panneau" : "Ouvrir le panneau"}
         >
           <svg

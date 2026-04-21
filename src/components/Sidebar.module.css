@@ -1035,51 +1035,192 @@
   }
 }
 
-/* ── Responsive ──────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   MOBILE — Bottom Sheet Pattern
+   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+
+  /* ── Sidebar becomes a bottom sheet ──── */
   .sidebar {
-    width: 100%;
-    height: 55%;
+    /* Reset desktop positioning */
     top: auto;
+    left: 0;
+    right: 0;
     bottom: 0;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    border-top: 1px solid var(--color-border);
-    padding: var(--space-md);
+    width: 100%;
+    height: 80vh;  /* max expanded height */
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 0;
+    gap: 0;
+    /* Use translateY for sheet states */
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* Glassmorphism on mobile */
   .sidebar::before {
-    background: linear-gradient(0deg, rgba(7, 13, 11, 0.42) 0%, rgba(7, 13, 11, 0.2) 100%);
-    border-right: 0;
+    border-right: none;
+    border-radius: 20px 20px 0 0;
   }
 
+  /* Peek state (closed): show only handle + top of content */
+  .sidebar.closed {
+    transform: translateY(calc(100% - 80px));
+  }
+
+  /* Expanded state (open): full sheet */
   .sidebar.open {
     transform: translateY(0);
   }
 
-  .sidebar.closed {
-    transform: translateY(calc(100% - 48px));
+  /* ── Drag handle pill ───────────────── */
+  .toggleBtn {
+    /* Replace with centered pill handle */
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%) !important;
+    width: 40px;
+    height: 5px;
+    min-width: unset;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22) !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0;
+    /* Hide the chevron SVG */
+    color: transparent;
+    font-size: 0;
   }
 
-  .toggleBtn {
-    position: absolute;
-    top: -36px;
-    right: 50%;
-    transform: translateX(50%) rotate(90deg);
-    width: 56px;
-    height: 28px;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    border: 1px solid var(--color-border);
-    border-bottom: none;
+  .toggleBtn svg {
+    display: none;
+  }
+
+  /* ── Header compact ─────────────────── */
+  .header {
+    padding: 28px 16px 10px;
+  }
+
+  .logoIcon {
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+  }
+
+  .title {
+    font-size: 18px;
+  }
+
+  .subtitle {
+    font-size: 10px;
+  }
+
+  /* ── Scroll container ───────────────── */
+  .sidebarInner {
+    padding-top: 0;
+    overflow-y: auto;
+    height: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ── Search ─────────────────────────── */
+  .searchWrap {
+    padding: 6px 12px;
+  }
+
+  .searchInput {
+    height: 40px;
+    font-size: 14px;
+  }
+
+  /* ── Filters ─────────────────────────── */
+  .timeFilterRow {
+    padding: 6px 12px;
+    grid-template-columns: repeat(6, 1fr);
+    overflow-x: auto;
+    gap: 4px;
+  }
+
+  .timeFilterBtn {
+    min-height: 28px;
+    font-size: 10px;
+    padding: 4px 2px;
+    white-space: nowrap;
+  }
+
+  .filterRow {
+    padding: 6px 12px;
+    gap: 6px;
+  }
+
+  .filterBtn {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  /* ── Cards ───────────────────────────── */
+  .listSection {
+    padding: 8px 12px 100px; /* extra bottom for FAB */
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  /* ── Detail view ─────────────────────── */
+  .detailPanel {
+    padding: 28px 16px 16px;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .detailPhotoWrap {
+    height: 180px;
+    border-radius: var(--radius-md);
+  }
+
+  /* ── Account ─────────────────────────── */
+  .accountPanel {
+    padding: 28px 16px 80px;
+  }
+
+  /* ── FAB — repositioned above sheet peek ── */
+  .fab {
+    bottom: 96px;   /* above the peek strip */
+    right: 16px;
+    padding: 14px 18px;
+    font-size: 13px;
+    gap: 6px;
+    border-radius: 999px;
+  }
+
+  /* Always show label on mobile for clarity */
+  .fabLabel {
+    display: inline;
+  }
+
+  /* ── AddObservation panel ────────────── */
+  .sidebar > aside,
+  .sidebar {
+    overflow: hidden;
+  }
+}
+
+/* ── Extra small screens (iPhone SE etc.) ── */
+@media (max-width: 390px) {
+  .sidebar {
+    height: 85vh;
+  }
+
+  .timeFilterRow {
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .fab {
-    bottom: calc(55% + var(--space-md));
-    right: calc(var(--space-md) + 44px);
-    padding: 12px 18px;
-    font-size: 13px;
-  }
-
-  .fabLabel {
-    display: none;
+    right: 12px;
+    padding: 12px 14px;
+    font-size: 12px;
   }
 }

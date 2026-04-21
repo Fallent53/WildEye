@@ -93,22 +93,36 @@
 }
 
 @media (max-width: 768px) {
+  /* Support button smaller, tucked top-right but avoid search bar */
   .supportButton {
-    top: 10px;
-    right: 10px;
-    min-height: 38px;
-    padding: 7px 9px;
+    top: auto;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    right: 12px;
+    min-height: 36px;
+    padding: 6px 10px;
     font-size: 12px;
+    border-radius: var(--radius-sm);
   }
 
   .supportIcon {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
   }
 
+  /* Watermark stays at top center on mobile (below search bar) */
   .watermark {
+    top: 60px;
     bottom: auto;
-    top: 62px;
+    font-size: 10px;
+    padding: 4px 12px;
+  }
+
+  /* Admin control above the bottom sheet peek */
+  .adminControl {
+    bottom: 88px;
+    left: 12px;
+    transform: none;
   }
 }
 
