@@ -10,6 +10,7 @@ export interface RemoteTaxon {
   preferred_common_name?: string;
   rank: string;
   rank_level: number;
+  iconic_taxon_name?: string; // e.g. 'Plantae', 'Fungi', 'Animalia'
   default_photo?: {
     square_url: string;
     medium_url: string;
