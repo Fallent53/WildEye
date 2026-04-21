@@ -60,12 +60,13 @@ export default function LocationHeader({ onFlyTo, onStartAddObservation, isAddin
     // Guess a sensible zoom based on place type
     const type = feature.place_type[0];
     const zoom =
-      type === "country" ? 4.5 :
-      type === "region" ? 6.5 :
-      type === "district" ? 8 :
-      type === "place" ? 10 :
-      type === "locality" || type === "neighborhood" ? 12 :
-      type === "poi" ? 14 : 9;
+      type === "country"      ? 5 :
+      type === "region"       ? 7.5 :
+      type === "district"     ? 9.5 :
+      type === "place"        ? 12.5 :   // ville
+      type === "locality"     ? 13.5 :   // village / quartier
+      type === "neighborhood" ? 14 :
+      type === "poi"          ? 15 : 11;
 
     onFlyTo(lng, lat, zoom);
     setIsOpen(false);
