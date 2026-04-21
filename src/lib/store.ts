@@ -7,6 +7,7 @@ import {
   ObservationPrivacyLevel,
   ObservationVisibility,
   SortOrder,
+  TimeRangeFilter,
   UserProfile,
   ViewState,
 } from "./types";
