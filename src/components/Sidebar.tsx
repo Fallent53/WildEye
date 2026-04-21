@@ -453,10 +453,7 @@ export default function Sidebar() {
               {obs.observer_name && (
                 <div className={styles.infoCard}>
                   <span>Observateur</span>
-                  <div className={styles.observerBox}>
-                    <div className={styles.avatarMini}>{obs.observer_name.charAt(0)}</div>
-                    <strong>{obs.observer_name}</strong>
-                  </div>
+                  <strong>{obs.observer_name}</strong>
                 </div>
               )}
               {isOwnObservation && (

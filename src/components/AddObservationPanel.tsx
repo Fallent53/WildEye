@@ -28,6 +28,8 @@ export default function AddObservationPanel() {
   const addObservation = useAppStore((s) => s.addObservation);
   const addSpeciesProposal = useAppStore((s) => s.addSpeciesProposal);
   const cancelAddObservation = useAppStore((s) => s.cancelAddObservation);
+  const userProfile = useAppStore((s) => s.userProfile);
+  const openAccountPanel = useAppStore((s) => s.openAccountPanel);
 
   const [category, setCategory] = useState<Category>("faune");
   const [speciesName, setSpeciesName] = useState("");
@@ -484,6 +486,22 @@ export default function AddObservationPanel() {
             </svg>
             <span>Les coordonnées exactes restent privées. Seule une position approximative sera partagée.</span>
           </div>
+
+          {userProfile.name === "Explorateur Anonyme" && (
+            <div className={styles.nameNotice}>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M8 5V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="8" cy="11.5" r="0.75" fill="currentColor" />
+              </svg>
+              <span>
+                Vous apparaissez comme <strong>{userProfile.name}</strong>. 
+                <button type="button" className={styles.nameNoticeBtn} onClick={openAccountPanel}>
+                  Changer mon pseudo
+                </button>
+              </span>
+            </div>
+          )}
 
           {/* Submit */}
           <button

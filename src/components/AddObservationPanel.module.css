@@ -521,6 +521,50 @@
   margin-top: 1px;
 }
 
+/* ── Name Notice ──────────────────────── */
+.nameNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--color-amber);
+  font-size: 12px;
+  line-height: 1.5;
+  animation: slideUp 0.3s var(--ease-out);
+}
+
+.nameNotice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--color-amber);
+}
+
+.nameNotice strong {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.nameNoticeBtn {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  color: var(--color-sky);
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.nameNoticeBtn:hover {
+  opacity: 0.8;
+}
+
 /* ── Submit ────────────────────────────── */
 .submitBtn {
   display: flex;
