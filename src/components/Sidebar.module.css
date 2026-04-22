@@ -569,10 +569,46 @@
   overflow-wrap: anywhere;
 }
 
+.reliabilityPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  border-radius: var(--radius-sm);
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--color-emerald);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .detailBody {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+.anomalyBox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.anomalyBox strong {
+  color: var(--color-amber);
+  font-size: 12px;
+}
+
+.anomalyBox span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .detailPhoto {

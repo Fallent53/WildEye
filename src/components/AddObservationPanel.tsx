@@ -323,7 +323,7 @@ export default function AddObservationPanel() {
                 autoFocus
                 required
               />
-              {(suggestions.length > 0 || remoteSuggestions.length > 0 || remoteMinerals.length > 0 || isSearching) && (
+              {!hasValidMatch && trimmedSpeciesName.length > 0 && (suggestions.length > 0 || remoteSuggestions.length > 0 || remoteMinerals.length > 0 || isSearching) && (
                 <div className={styles.suggestionList}>
                   {suggestions.length > 0 && (
                     <>
@@ -564,17 +564,9 @@ export default function AddObservationPanel() {
             disabled={!hasValidMatch || !observedDate || isSubmitting}
           >
             {isSubmitting ? (
-              <>
-                <span className={styles.spinner} />
-                Publication...
-              </>
+              <span key="submitting" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><span className={styles.spinner} /><span>Publication...</span></span>
             ) : (
-              <>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                Publier l&apos;observation
-              </>
+              <span key="not-submitting" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg><span>Publier l&apos;observation</span></span>
             )}
           </button>
         </form>

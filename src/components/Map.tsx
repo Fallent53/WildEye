@@ -8,7 +8,7 @@ import { useAppStore } from "@/lib/store";
 import { getObservationEmoji, MAPBOX_TOKEN, MAP_STYLE } from "@/lib/constants";
 import { buildObservationZones, zonesToGeoJSON } from "@/lib/observation-zones";
 import { isObservationInTimeRange } from "@/lib/time-range";
-import { Observation, Category } from "@/lib/types";
+import { BoundingBox, Category, DataLoadScope, Observation } from "@/lib/types";
 import styles from "./Map.module.css";
 
 const CATEGORY_COLORS: Record<Category, string> = {
@@ -18,6 +18,7 @@ const CATEGORY_COLORS: Record<Category, string> = {
 };
 
 const EMOJI_IMAGE_PREFIX = "taxon-emoji-";
+const VIEWPORT_LOAD_DEBOUNCE_MS = 320;
 
 function getEmojiImageId(emoji: string) {
   return `${EMOJI_IMAGE_PREFIX}${Array.from(emoji)
@@ -103,6 +104,23 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#039;");
 }
 
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getMapScope(map: mapboxgl.Map): DataLoadScope {
+  const bounds = map.getBounds();
+  if (!bounds) return { zoom: map.getZoom() };
+  const bbox: BoundingBox = [
+    clamp(bounds.getWest(), -180, 180),
+    clamp(bounds.getSouth(), -90, 90),
+    clamp(bounds.getEast(), -180, 180),
+    clamp(bounds.getNorth(), -90, 90),
+  ];
+
+  return { bbox, zoom: map.getZoom() };
+}
+
 export default function Map() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -111,6 +129,7 @@ export default function Map() {
   const observationsRef = useRef<Observation[]>([]);
   const filteredObservationsRef = useRef<Observation[]>([]);
   const mapDataUpdateTimer = useRef<number | null>(null);
+  const viewportLoadTimer = useRef<number | null>(null);
 
   const observations = useAppStore((s) => s.observations);
   const filters = useAppStore((s) => s.filters);
@@ -125,6 +144,7 @@ export default function Map() {
   const openSidebar = useAppStore((s) => s.openSidebar);
   const isAdmin = useAppStore((s) => s.isAdmin);
   const userProfile = useAppStore((s) => s.userProfile);
+  const loadExternalData = useAppStore((s) => s.loadExternalData);
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
@@ -189,6 +209,23 @@ export default function Map() {
       observationsRef.current.find((o) => o.id === id) ??
       null,
     []
+  );
+
+  const scheduleViewportLoad = useCallback(
+    (delay = VIEWPORT_LOAD_DEBOUNCE_MS) => {
+      const map = mapRef.current;
+      if (!map) return;
+      if (viewportLoadTimer.current !== null) {
+        window.clearTimeout(viewportLoadTimer.current);
+      }
+
+      viewportLoadTimer.current = window.setTimeout(() => {
+        const currentMap = mapRef.current;
+        if (!currentMap) return;
+        loadExternalData(getMapScope(currentMap));
+      }, delay);
+    },
+    [loadExternalData]
   );
 
   // Init map
@@ -465,6 +502,7 @@ export default function Map() {
       });
 
       sourceReady.current = true;
+      scheduleViewportLoad(60);
 
       // ── Interactions ──
       // Click cluster → zoom in
@@ -557,6 +595,8 @@ export default function Map() {
           if (canvas) canvas.style.cursor = "";
         });
       });
+
+      map.on("moveend", () => scheduleViewportLoad());
     });
 
     mapRef.current = map;
@@ -566,12 +606,21 @@ export default function Map() {
         window.clearTimeout(mapDataUpdateTimer.current);
         mapDataUpdateTimer.current = null;
       }
+      if (viewportLoadTimer.current !== null) {
+        window.clearTimeout(viewportLoadTimer.current);
+        viewportLoadTimer.current = null;
+      }
       map.remove();
       mapRef.current = null;
       sourceReady.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!sourceReady.current) return;
+    scheduleViewportLoad(120);
+  }, [filters, scheduleViewportLoad, timeRange]);
 
   // Update source data when observations/filters change
   useEffect(() => {

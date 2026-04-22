@@ -50,10 +50,8 @@ function AdminLogin() {
 }
 
 export default function Home() {
-  const loadExternalData = useAppStore((s) => s.loadExternalData);
   const isLoading = useAppStore((s) => s.isLoading);
   const dataSource = useAppStore((s) => s.dataSource);
-  const timeRange = useAppStore((s) => s.timeRange);
   const setFlyTo = useAppStore((s) => s.setFlyTo);
   const startAddObservation = useAppStore((s) => s.startAddObservation);
   const isAddingObservation = useAppStore((s) => s.isAddingObservation);
@@ -64,14 +62,14 @@ export default function Home() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       refreshUserSession().finally(() => {
-        if (!cancelled) loadExternalData();
+        if (cancelled) return;
       });
     }, 120);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [loadExternalData, refreshUserSession, timeRange]);
+  }, [refreshUserSession]);
 
   useEffect(() => {
     refreshAdminSession();

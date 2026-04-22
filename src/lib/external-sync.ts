@@ -2,7 +2,8 @@
 import { getSupabaseAdmin } from "./supabase-admin";
 import { fetchAllExternalObservations } from "./external-data";
 import { getExternalDateRange } from "./time-range";
-import { Observation, TimeRangeFilter } from "./types";
+import { enrichObservationList } from "./observation-quality";
+import { BoundingBox, Category, Observation, TimeRangeFilter } from "./types";
 
 const EXTERNAL_CACHE_TABLE = "external_observations";
 
@@ -11,6 +12,12 @@ export type ExternalSyncOptions = {
   gbifLimit?: number;
   inatLimit?: number;
   obisLimit?: number;
+};
+
+export type CachedObservationQuery = {
+  bbox?: BoundingBox;
+  categories?: Category[];
+  limit?: number;
 };
 
 function sanitizeExternalObservation(obs: Observation) {
@@ -24,22 +31,39 @@ function sanitizeExternalObservation(obs: Observation) {
   };
 }
 
-export async function readCachedExternalObservations(range: TimeRangeFilter) {
+export async function readCachedExternalObservations(
+  range: TimeRangeFilter,
+  options: CachedObservationQuery = {}
+) {
   const start = getExternalDateRange(range)?.from;
+  const limit = Math.max(100, Math.min(options.limit ?? 900, 1200));
   let query = getSupabaseAdmin()
     .from(EXTERNAL_CACHE_TABLE)
     .select("*")
     .eq("visibility", "public")
     .order("observed_at", { ascending: false })
-    .limit(1200);
+    .limit(limit);
 
   if (start) {
     query = query.gte("observed_at", start);
   }
 
+  if (options.categories?.length) {
+    query = query.in("category", options.categories);
+  }
+
+  if (options.bbox) {
+    const [west, south, east, north] = options.bbox;
+    query = query.gte("latitude_blurred", south).lte("latitude_blurred", north);
+    query =
+      west <= east
+        ? query.gte("longitude_blurred", west).lte("longitude_blurred", east)
+        : query.or(`longitude_blurred.gte.${west},longitude_blurred.lte.${east}`);
+  }
+
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Observation[];
+  return enrichObservationList((data ?? []) as Observation[]);
 }
 
 export async function syncExternalObservations(options: ExternalSyncOptions = {}) {

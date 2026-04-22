@@ -7,6 +7,13 @@ export type ObservationVisibility = "public" | "private";
 export type ObservationPrivacyLevel = "standard" | "protected";
 export type LocalizedText = Record<Locale, string>;
 
+export type BoundingBox = [west: number, south: number, east: number, north: number];
+
+export interface DataLoadScope {
+  bbox?: BoundingBox;
+  zoom?: number;
+}
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -55,6 +62,9 @@ export interface Observation {
   is_anonymous?: boolean;
   verification_status?: "pending" | "verified" | "rejected";
   moderation_note?: string;
+  reliability_score?: number;
+  reliability_label?: string;
+  anomaly_flags?: string[];
   wiki_url?: string;
   // Specific for Minerals (cristal)
   crystal_system?: string;

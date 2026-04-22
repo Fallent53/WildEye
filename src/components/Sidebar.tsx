@@ -328,6 +328,10 @@ export default function Sidebar() {
     const isOwn = isOwnObservation(obs, userProfile);
     const emoji = getObservationEmoji(obs);
     const displayName = obs.common_name ?? obs.species_name;
+    const reliabilityText =
+      typeof obs.reliability_score === "number"
+        ? `${obs.reliability_label ?? "Fiable"} · ${obs.reliability_score}/100`
+        : obs.quality_label;
     return (
       <aside className={`${styles.sidebar} ${isSidebarOpen ? styles.open : styles.closed}`}>
         <button className={styles.backBtn} onClick={() => selectObservation(null)}>
@@ -345,6 +349,12 @@ export default function Sidebar() {
             <div>
               <h2 className={styles.detailTitle}>{displayName}</h2>
               <p className={styles.detailScientific}>{formatScientificLine(obs)}</p>
+              {reliabilityText && (
+                <div className={styles.reliabilityPill}>
+                  <ShieldIcon />
+                  <span>{reliabilityText}</span>
+                </div>
+              )}
             </div>
           </div>
           <div className={styles.detailBody}>
@@ -360,6 +370,14 @@ export default function Sidebar() {
             {obs.description && (
               <div className={styles.detailDescription}>
                 <p>{obs.description}</p>
+              </div>
+            )}
+            {obs.anomaly_flags && obs.anomaly_flags.length > 0 && (
+              <div className={styles.anomalyBox}>
+                <strong>Points a verifier</strong>
+                {obs.anomaly_flags.map((flag) => (
+                  <span key={flag}>{flag}</span>
+                ))}
               </div>
             )}
 
@@ -394,10 +412,10 @@ export default function Sidebar() {
                   <strong>{obs.activity_hint}</strong>
                 </div>
               )}
-              {obs.quality_label && (
+              {reliabilityText && (
                 <div className={styles.infoCard}>
-                  <span>Fiabilité</span>
-                  <strong>{obs.quality_label}</strong>
+                  <span>Fiabilite</span>
+                  <strong>{reliabilityText}</strong>
                 </div>
               )}
               <div className={styles.infoCard}>

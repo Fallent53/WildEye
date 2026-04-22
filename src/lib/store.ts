@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import {
   Category,
+  DataLoadScope,
   FilterState,
   Locale,
   Observation,
@@ -13,14 +14,46 @@ import {
   ViewState,
 } from "./types";
 import { supabase } from "./supabase";
+import { enrichObservationList } from "./observation-quality";
 
 let externalLoadRequestId = 0;
 const USER_PROFILE_STORAGE_KEY = "wildeye_user_profile";
-const externalDataCache = new Map<
-  TimeRangeFilter,
-  { observations: Observation[]; loadedAt: number }
->();
+const externalDataCache = new Map<string, { observations: Observation[]; loadedAt: number }>();
 const EXTERNAL_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function getActiveCategories(filters: FilterState) {
+  return (Object.entries(filters) as Array<[Category, boolean]>)
+    .filter(([, enabled]) => enabled)
+    .map(([category]) => category);
+}
+
+function getScopeLimit(scope?: DataLoadScope) {
+  const zoom = scope?.zoom ?? 5;
+  if (zoom < 6) return 520;
+  if (zoom < 9) return 760;
+  return 1000;
+}
+
+function getDataCacheKey(
+  timeRange: TimeRangeFilter,
+  categories: Category[],
+  scope?: DataLoadScope
+) {
+  const categoryKey = categories.join("|") || "none";
+  if (!scope?.bbox) return `${timeRange}:${categoryKey}:all`;
+
+  return [
+    timeRange,
+    categoryKey,
+    ...scope.bbox.map((value) => value.toFixed(2)),
+    Math.round(scope.zoom ?? 0),
+  ].join(":");
+}
+
+function appendScopeParams(params: URLSearchParams, scope: DataLoadScope | undefined, limit: number) {
+  params.set("limit", String(limit));
+  if (scope?.bbox) params.set("bbox", scope.bbox.map((value) => value.toFixed(5)).join(","));
+}
 
 function readStoredUserProfile(): UserProfile {
   if (typeof window === "undefined") {
@@ -108,7 +141,7 @@ interface AppState {
   openAccountPanel: () => void;
   cancelAddObservation: () => void;
   startAddObservation: () => void;
-  loadExternalData: () => Promise<void>;
+  loadExternalData: (scope?: DataLoadScope) => Promise<void>;
   refreshUserSession: () => Promise<void>;
   adminLogin: (passcode: string) => Promise<boolean>;
   adminLogout: () => Promise<void>;
@@ -356,10 +389,18 @@ export const useAppStore = create<AppState>((set) => ({
       isAddingObservation: false,
     }),
 
-  loadExternalData: async () => {
+  loadExternalData: async (scope) => {
     const requestId = ++externalLoadRequestId;
-    const timeRange = useAppStore.getState().timeRange;
-    const cached = externalDataCache.get(timeRange);
+    const state = useAppStore.getState();
+    const timeRange = state.timeRange;
+    const categories = getActiveCategories(state.filters);
+    const limit = getScopeLimit(scope);
+    if (categories.length === 0) {
+      set({ observations: [], isLoading: false });
+      return;
+    }
+    const cacheKey = getDataCacheKey(timeRange, categories, scope);
+    const cached = externalDataCache.get(cacheKey);
     if (cached && Date.now() - cached.loadedAt < EXTERNAL_DATA_CACHE_TTL_MS) {
       set({
         observations: cached.observations,
@@ -373,7 +414,13 @@ export const useAppStore = create<AppState>((set) => ({
 
     set({ isLoading: true });
     try {
-      const externalTask = fetch(`/api/external-observations?range=${encodeURIComponent(timeRange)}`, {
+      const externalParams = new URLSearchParams({
+        range: timeRange,
+        categories: categories.join(","),
+      });
+      appendScopeParams(externalParams, scope, limit);
+
+      const externalTask = fetch(`/api/external-observations?${externalParams.toString()}`, {
         cache: "no-store",
       })
         .then((response) => (response.ok ? response.json() : { observations: [] }))
@@ -381,10 +428,23 @@ export const useAppStore = create<AppState>((set) => ({
         .catch(() => []);
 
       // Fetch from Supabase
-      const internalTask = supabase
+      let internalQuery = supabase
         .from("public_observations")
         .select("*")
+        .in("category", categories)
         .order("observed_at", { ascending: false })
+        .limit(limit);
+
+      if (scope?.bbox) {
+        const [west, south, east, north] = scope.bbox;
+        internalQuery = internalQuery.gte("latitude_blurred", south).lte("latitude_blurred", north);
+        internalQuery =
+          west <= east
+            ? internalQuery.gte("longitude_blurred", west).lte("longitude_blurred", east)
+            : internalQuery.or(`longitude_blurred.gte.${west},longitude_blurred.lte.${east}`);
+      }
+
+      const internalTask = internalQuery
         .then(({ data, error }) => ({
           data: error ? [] : data,
         }));
@@ -398,8 +458,10 @@ export const useAppStore = create<AppState>((set) => ({
         ownTask,
       ]);
       
-      const publicInternalResults = (internal || []) as Observation[];
-      const ownResults = ((own as { observations?: Observation[] }).observations ?? []) as Observation[];
+      const publicInternalResults = enrichObservationList((internal || []) as Observation[]);
+      const ownResults = enrichObservationList(
+        ((own as { observations?: Observation[] }).observations ?? []) as Observation[]
+      );
       const ownIds = new Set(ownResults.map((obs) => obs.id));
       const internalResults = [
         ...ownResults,
@@ -412,7 +474,7 @@ export const useAppStore = create<AppState>((set) => ({
         (a, b) => new Date(b.observed_at).getTime() - new Date(a.observed_at).getTime()
       );
       if (combined.length > 0) {
-        externalDataCache.set(timeRange, {
+        externalDataCache.set(cacheKey, {
           observations: combined,
           loadedAt: Date.now(),
         });
