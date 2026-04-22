@@ -16,6 +16,10 @@ type AdminPasscodeRow = {
   iterations: number;
 };
 
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const MAX_LOGIN_ATTEMPTS = 8;
+
 function hashPasscode(passcode: string, salt: string, iterations: number) {
   return pbkdf2Sync(passcode, salt, iterations, 32, "sha256").toString("hex");
 }
@@ -26,7 +30,36 @@ function safeCompareHex(a: string, b: string) {
   return aBuffer.length === bBuffer.length && timingSafeEqual(aBuffer, bBuffer);
 }
 
+function getClientKey(request: Request) {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip") ||
+    "local"
+  );
+}
+
+function isRateLimited(key: string) {
+  const now = Date.now();
+  const entry = loginAttempts.get(key);
+  if (!entry || entry.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return false;
+  }
+
+  entry.count += 1;
+  return entry.count > MAX_LOGIN_ATTEMPTS;
+}
+
+function clearRateLimit(key: string) {
+  loginAttempts.delete(key);
+}
+
 export async function POST(request: Request) {
+  const clientKey = getClientKey(request);
+  if (isRateLimited(clientKey)) {
+    return NextResponse.json({ ok: false }, { status: 429 });
+  }
+
   let passcode = "";
 
   try {
@@ -63,6 +96,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
+  clearRateLimit(clientKey);
   const response = NextResponse.json({ ok: true });
   response.cookies.set(
     ADMIN_SESSION_COOKIE,

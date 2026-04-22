@@ -124,6 +124,7 @@ export default function Map() {
   const setNewObservationCoords = useAppStore((s) => s.setNewObservationCoords);
   const openSidebar = useAppStore((s) => s.openSidebar);
   const isAdmin = useAppStore((s) => s.isAdmin);
+  const userProfile = useAppStore((s) => s.userProfile);
 
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const normalizedSearchQuery = deferredSearchQuery.trim().toLowerCase();
@@ -131,8 +132,10 @@ export default function Map() {
   const filteredObservations = useMemo(
     () =>
       observations.filter((obs) => {
-        const isPrivateLocal = obs.user_id === "local-user" && obs.visibility === "private";
-        if (isPrivateLocal && !isAdmin) return false;
+        const isOwn =
+          (Boolean(obs.user_id) && obs.user_id === userProfile.id) ||
+          (Boolean(obs.owner_ref) && obs.owner_ref === userProfile.owner_ref);
+        if (obs.visibility === "private" && !isOwn && !isAdmin) return false;
         if (!filters[obs.category]) return false;
         if (!isObservationInTimeRange(obs, timeRange)) return false;
         if (normalizedSearchQuery) {
@@ -147,7 +150,7 @@ export default function Map() {
         }
         return true;
       }),
-    [filters, isAdmin, normalizedSearchQuery, observations, timeRange]
+    [filters, isAdmin, normalizedSearchQuery, observations, timeRange, userProfile.id, userProfile.owner_ref]
   );
 
   const observationGeoJSON = useMemo(

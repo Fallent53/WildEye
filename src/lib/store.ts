@@ -12,13 +12,15 @@ import {
   UserProfile,
   ViewState,
 } from "./types";
-import { generateDemoData } from "./demo-data";
-import { fetchAllExternalObservations } from "./external-data";
-import { getExternalDateRange } from "./time-range";
 import { supabase } from "./supabase";
 
 let externalLoadRequestId = 0;
 const USER_PROFILE_STORAGE_KEY = "wildeye_user_profile";
+const externalDataCache = new Map<
+  TimeRangeFilter,
+  { observations: Observation[]; loadedAt: number }
+>();
+const EXTERNAL_DATA_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readStoredUserProfile(): UserProfile {
   if (typeof window === "undefined") {
@@ -47,12 +49,19 @@ function writeStoredUserProfile(profile: UserProfile) {
   } catch {}
 }
 
+function isOwnObservation(obs: Observation, profile: UserProfile) {
+  return (
+    (Boolean(obs.user_id) && obs.user_id === profile.id) ||
+    (Boolean(obs.owner_ref) && obs.owner_ref === profile.owner_ref)
+  );
+}
+
 interface AppState {
   /* ── Data ─────────────────────────── */
   observations: Observation[];
   selectedObservation: Observation | null;
   isLoading: boolean;
-  dataSource: "demo" | "external" | "mixed";
+  dataSource: "external" | "mixed";
   locale: Locale;
   isAdmin: boolean;
   userProfile: UserProfile;
@@ -91,7 +100,7 @@ interface AppState {
   setActivePanel: (panel: "explore" | "add" | "detail" | "account" | null) => void;
   setIsAddingObservation: (value: boolean) => void;
   setNewObservationCoords: (coords: { lng: number; lat: number } | null) => void;
-  addObservation: (obs: Omit<Observation, "id" | "created_at" | "user_id" | "longitude_blurred" | "latitude_blurred">) => void;
+  addObservation: (obs: Omit<Observation, "id" | "created_at" | "user_id" | "owner_ref" | "longitude_blurred" | "latitude_blurred">) => Promise<boolean>;
   deleteObservation: (id: string) => void;
   setObservationVisibility: (id: string, visibility: ObservationVisibility) => void;
   setObservationAnonymous: (id: string, isAnonymous: boolean) => void;
@@ -99,8 +108,8 @@ interface AppState {
   openAccountPanel: () => void;
   cancelAddObservation: () => void;
   startAddObservation: () => void;
-  loadDemoData: () => void;
   loadExternalData: () => Promise<void>;
+  refreshUserSession: () => Promise<void>;
   adminLogin: (passcode: string) => Promise<boolean>;
   adminLogout: () => Promise<void>;
   refreshAdminSession: () => Promise<void>;
@@ -112,7 +121,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedObservation: null,
   userProfile: readStoredUserProfile(),
   isLoading: false,
-  dataSource: "demo" as const,
+  dataSource: "external" as const,
   locale: "fr",
   isAdmin: false,
 
@@ -200,62 +209,57 @@ export const useAppStore = create<AppState>((set) => ({
       newObservationCoords: null,
     }),
 
-  addObservation: (data) => {
-    // Blur coordinates by 300-500m for privacy
-    const blurOffset = 0.003 + Math.random() * 0.002;
-    const blurAngle = Math.random() * Math.PI * 2;
+  addObservation: async (data) => {
+    const state = useAppStore.getState();
+    const response = await fetch("/api/observations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...data,
+        observer_name: state.userProfile.name,
+      }),
+    });
 
-    const newObs: Observation = {
-      id: `obs-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      created_at: new Date().toISOString(),
-      user_id: useAppStore.getState().userProfile.id,
-      source_name: "Contribution locale",
-      source_kind: "local",
-      observer_name: useAppStore.getState().userProfile.name,
-      visibility: "public",
-      privacy_level: "standard",
-      is_anonymous: false,
-      longitude_blurred: data.longitude + Math.cos(blurAngle) * blurOffset,
-      latitude_blurred: data.latitude + Math.sin(blurAngle) * blurOffset,
-      ...data,
-    };
+    if (!response.ok) return false;
 
-    set((state) => ({
-      observations: [newObs, ...state.observations],
+    const payload = (await response.json()) as { observation?: Observation };
+    if (!payload.observation) return false;
+
+    set((current) => ({
+      observations: [payload.observation!, ...current.observations],
       isAddingObservation: false,
       activePanel: "detail",
-      selectedObservation: newObs,
+      selectedObservation: payload.observation!,
       newObservationCoords: null,
+      dataSource: "mixed",
     }));
+    externalDataCache.clear();
 
-    // Async persist to Supabase
-    supabase.from("observations").insert([newObs]).then(({ error }) => {
-      if (error) console.error("Error persisting observation:", error);
-    });
+    return true;
   },
 
   deleteObservation: (id) =>
     set((state) => {
+      externalDataCache.clear();
       const targetObs = state.observations.find((o) => o.id === id);
       const nextObservations = state.observations.filter((obs) => obs.id !== id);
       const selectedObservation =
         state.selectedObservation?.id === id ? null : state.selectedObservation;
 
       if (targetObs) {
-        if (state.isAdmin && targetObs.user_id !== state.userProfile.id) {
+        const isOwn = isOwnObservation(targetObs, state.userProfile);
+        if (state.isAdmin && !isOwn) {
           fetch(`/api/admin/observations/${encodeURIComponent(id)}`, {
             method: "DELETE",
           }).then((response) => {
             if (!response.ok) console.error("Error deleting observation as admin.");
           });
-        } else if (targetObs.source_kind === "local" && targetObs.user_id === state.userProfile.id) {
-          supabase
-            .from("observations")
-            .delete()
-            .eq("id", id)
-            .then(({ error }) => {
-              if (error) console.error("Error deleting observation from DB:", error);
-            });
+        } else if (targetObs.source_kind === "local" && isOwn) {
+          fetch(`/api/observations/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          }).then((response) => {
+            if (!response.ok) console.error("Error deleting observation from DB.");
+          });
         }
       }
 
@@ -269,19 +273,26 @@ export const useAppStore = create<AppState>((set) => ({
   setObservationVisibility: (id, visibility) =>
     set((state) => {
       const observations = state.observations.map((obs) =>
-        obs.id === id && obs.user_id === state.userProfile.id ? { ...obs, visibility } : obs
+        obs.id === id && isOwnObservation(obs, state.userProfile) ? { ...obs, visibility } : obs
       );
       const selectedObservation =
         state.selectedObservation?.id === id
           ? observations.find((obs) => obs.id === id) ?? null
           : state.selectedObservation;
+      fetch(`/api/observations/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility }),
+      }).then((response) => {
+        if (!response.ok) console.error("Error updating observation visibility.");
+      });
       return { observations, selectedObservation };
     }),
 
   setObservationAnonymous: (id, is_anonymous) =>
     set((state) => {
       const observations = state.observations.map((obs) =>
-        obs.id === id && obs.user_id === state.userProfile.id
+        obs.id === id && isOwnObservation(obs, state.userProfile)
           ? {
               ...obs,
               is_anonymous,
@@ -293,13 +304,23 @@ export const useAppStore = create<AppState>((set) => ({
         state.selectedObservation?.id === id
           ? observations.find((obs) => obs.id === id) ?? null
           : state.selectedObservation;
+      fetch(`/api/observations/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          is_anonymous,
+          observer_name: state.userProfile.name,
+        }),
+      }).then((response) => {
+        if (!response.ok) console.error("Error updating observation anonymity.");
+      });
       return { observations, selectedObservation };
     }),
 
   setObservationPrivacyLevel: (id, privacy_level) =>
     set((state) => {
       const observations = state.observations.map((obs) => {
-        if (obs.id !== id || obs.user_id !== state.userProfile.id) return obs;
+        if (obs.id !== id || !isOwnObservation(obs, state.userProfile)) return obs;
 
         const blurOffset =
           privacy_level === "protected"
@@ -318,6 +339,13 @@ export const useAppStore = create<AppState>((set) => ({
         state.selectedObservation?.id === id
           ? observations.find((obs) => obs.id === id) ?? null
           : state.selectedObservation;
+      fetch(`/api/observations/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ privacy_level }),
+      }).then((response) => {
+        if (!response.ok) console.error("Error updating observation privacy level.");
+      });
       return { observations, selectedObservation };
     }),
 
@@ -328,55 +356,102 @@ export const useAppStore = create<AppState>((set) => ({
       isAddingObservation: false,
     }),
 
-  loadDemoData: () => {
-    const data = generateDemoData();
-    set({ observations: data, isLoading: false, dataSource: "demo" });
-  },
-
   loadExternalData: async () => {
     const requestId = ++externalLoadRequestId;
     const timeRange = useAppStore.getState().timeRange;
+    const cached = externalDataCache.get(timeRange);
+    if (cached && Date.now() - cached.loadedAt < EXTERNAL_DATA_CACHE_TTL_MS) {
+      set({
+        observations: cached.observations,
+        isLoading: false,
+        dataSource: cached.observations.some((obs) => obs.source_kind === "local")
+          ? "mixed"
+          : "external",
+      });
+      return;
+    }
+
     set({ isLoading: true });
     try {
-      // Fetch from iNaturalist/GBIF/OBIS
-      const externalTask = fetchAllExternalObservations({
-        gbifLimit: 1200,
-        inatLimit: 1200,
-        obisLimit: 800,
-        dateRange: getExternalDateRange(timeRange),
-      });
+      const externalTask = fetch(`/api/external-observations?range=${encodeURIComponent(timeRange)}`, {
+        cache: "no-store",
+      })
+        .then((response) => (response.ok ? response.json() : { observations: [] }))
+        .then((payload: { observations?: Observation[] }) => payload.observations ?? [])
+        .catch(() => []);
 
       // Fetch from Supabase
       const internalTask = supabase
-        .from("observations")
+        .from("public_observations")
         .select("*")
-        .order("observed_at", { ascending: false });
+        .order("observed_at", { ascending: false })
+        .then(({ data, error }) => ({
+          data: error ? [] : data,
+        }));
+      const ownTask = fetch("/api/observations", { cache: "no-store" })
+        .then((response) => (response.ok ? response.json() : { observations: [] }))
+        .catch(() => ({ observations: [] }));
 
-      const [external, { data: internal, error: internalError }] = await Promise.all([
+      const [external, { data: internal }, own] = await Promise.all([
         externalTask,
         internalTask,
+        ownTask,
       ]);
-
-      if (internalError) console.error("Error fetching internal observations:", internalError);
       
-      const internalResults = (internal || []) as Observation[];
+      const publicInternalResults = (internal || []) as Observation[];
+      const ownResults = ((own as { observations?: Observation[] }).observations ?? []) as Observation[];
+      const ownIds = new Set(ownResults.map((obs) => obs.id));
+      const internalResults = [
+        ...ownResults,
+        ...publicInternalResults.filter((obs) => !ownIds.has(obs.id)),
+      ];
 
       if (requestId !== externalLoadRequestId) return;
 
       const combined = [...internalResults, ...external].sort(
         (a, b) => new Date(b.observed_at).getTime() - new Date(a.observed_at).getTime()
       );
+      if (combined.length > 0) {
+        externalDataCache.set(timeRange, {
+          observations: combined,
+          loadedAt: Date.now(),
+        });
+      }
 
       set({
         observations: combined,
         isLoading: false,
-        dataSource: combined.length > 0 ? "mixed" : "external",
+        dataSource: internalResults.length > 0 ? "mixed" : "external",
       });
     } catch (err) {
       console.error("Error loading combined data:", err);
       if (requestId !== externalLoadRequestId) return;
       set({ isLoading: false });
     }
+  },
+
+  refreshUserSession: async () => {
+    const currentProfile = useAppStore.getState().userProfile;
+    const response = await fetch("/api/user/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: currentProfile.id }),
+    });
+
+    if (!response.ok) return;
+
+    const data = (await response.json()) as { userId?: string; owner_ref?: string };
+    if (!data.userId) return;
+
+    set((state) => {
+      const userProfile = {
+        ...state.userProfile,
+        id: data.userId!,
+        owner_ref: data.owner_ref,
+      };
+      writeStoredUserProfile(userProfile);
+      return { userProfile };
+    });
   },
 
   adminLogin: async (passcode: string) => {

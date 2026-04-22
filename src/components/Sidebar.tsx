@@ -1,13 +1,18 @@
 /* (c) 2026 - Loris Dc - WildEye Project */
 "use client";
 
+import dynamic from "next/dynamic";
 import { useDeferredValue, useMemo, useRef } from "react";
 import { useAppStore } from "@/lib/store";
 import { CATEGORY_CONFIG, getObservationEmoji } from "@/lib/constants";
 import { isObservationInTimeRange, TIME_RANGE_OPTIONS } from "@/lib/time-range";
 import { Category, Observation, SortOrder } from "@/lib/types";
-import AddObservationPanel from "./AddObservationPanel";
 import styles from "./Sidebar.module.css";
+
+const AddObservationPanel = dynamic(() => import("./AddObservationPanel"), {
+  ssr: false,
+  loading: () => <div className={styles.panelLoading} />,
+});
 
 function CategoryBadge({ category, emoji }: { category: Category; emoji?: string }) {
   const cfg = CATEGORY_CONFIG[category];
@@ -114,25 +119,19 @@ function formatSimpleInfo(obs: Observation) {
   return details.join(" · ");
 }
 
-function getDetailTrustLabel(obs: Observation) {
-  if (obs.source_kind === "inaturalist" && obs.quality_label?.toLowerCase().includes("recherche")) {
-    return "Grade recherche iNaturalist";
-  }
-  if (obs.source_kind === "inaturalist") return "Observation iNaturalist";
-  if (obs.source_kind === "gbif") return "Présence signalée dans GBIF";
-  if (obs.source_kind === "obis") return "Occurrence marine OBIS";
-  if (obs.source_kind === "demo") return "Donnée de démonstration";
-  if (obs.source_kind === "reference") return "Référence publique";
-  if (obs.source_kind === "local") return "Contribution locale";
-  return undefined;
-}
-
 function sortObservations(observations: Observation[], order: SortOrder) {
   return [...observations].sort((a, b) => {
     const diff =
       new Date(b.observed_at).getTime() - new Date(a.observed_at).getTime();
     return order === "newest" ? diff : -diff;
   });
+}
+
+function isOwnObservation(obs: Observation, userProfile: { id: string; owner_ref?: string }) {
+  return (
+    (Boolean(obs.user_id) && obs.user_id === userProfile.id) ||
+    (Boolean(obs.owner_ref) && obs.owner_ref === userProfile.owner_ref)
+  );
 }
 
 function UserIcon() {
@@ -158,15 +157,6 @@ function ShieldIcon() {
         strokeWidth="1.7"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function ShieldCheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-      <path d="M8 1L2 3V7.5C2 11.09 4.56 14.41 8 15C11.44 14.41 14 11.09 14 7.5V3L8 1Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M6 8L7.5 9.5L10.5 6.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   );
 }
@@ -229,13 +219,13 @@ export default function Sidebar() {
   };
 
   const publicObservations = useMemo(
-    () => observations.filter((obs) => obs.visibility !== "private" || obs.user_id === userProfile.id),
-    [observations, userProfile.id]
+    () => observations.filter((obs) => obs.visibility !== "private" || isOwnObservation(obs, userProfile)),
+    [observations, userProfile]
   );
 
   const myObservations = useMemo(
-    () => sortObservations(observations.filter((obs) => obs.user_id === userProfile.id), sortOrder),
-    [observations, sortOrder, userProfile.id]
+    () => sortObservations(observations.filter((obs) => isOwnObservation(obs, userProfile)), sortOrder),
+    [observations, sortOrder, userProfile]
   );
 
   const filteredObs = useMemo(
@@ -335,7 +325,7 @@ export default function Sidebar() {
   if (selectedObservation) {
     const obs = selectedObservation;
     const cfg = CATEGORY_CONFIG[obs.category];
-    const isOwnObservation = obs.user_id === userProfile.id;
+    const isOwn = isOwnObservation(obs, userProfile);
     const emoji = getObservationEmoji(obs);
     const displayName = obs.common_name ?? obs.species_name;
     return (
@@ -404,18 +394,6 @@ export default function Sidebar() {
                   <strong>{obs.activity_hint}</strong>
                 </div>
               )}
-              {obs.taxon_class && (
-                <div className={styles.infoCard}>
-                  <span>Classe</span>
-                  <strong>{obs.taxon_class}</strong>
-                </div>
-              )}
-              {obs.taxon_order && (
-                <div className={styles.infoCard}>
-                  <span>Ordre</span>
-                  <strong>{obs.taxon_order}</strong>
-                </div>
-              )}
               {obs.quality_label && (
                 <div className={styles.infoCard}>
                   <span>Fiabilité</span>
@@ -425,10 +403,6 @@ export default function Sidebar() {
               <div className={styles.infoCard}>
                 <span>Observé le</span>
                 <strong>{formatLongDate(obs.observed_at)}</strong>
-              </div>
-              <div className={styles.infoCard}>
-                <span>Mise en ligne</span>
-                <strong>{formatLongDate(obs.created_at)}</strong>
               </div>
               {obs.source_name && (
                 <div className={styles.infoCard}>
@@ -449,7 +423,7 @@ export default function Sidebar() {
                   <strong>{obs.observer_name}</strong>
                 </div>
               )}
-              {isOwnObservation && (
+              {isOwn && (
                 <>
                   <div className={styles.infoCard}>
                     <span>Visibilité</span>
@@ -470,7 +444,7 @@ export default function Sidebar() {
               </a>
             )}
 
-            {isOwnObservation && (
+            {isOwn && (
               <div className={styles.ownerControls}>
                 <div className={styles.ownerHeader}>
                   <ShieldIcon />
@@ -509,7 +483,7 @@ export default function Sidebar() {
               </div>
             )}
 
-            {isAdmin && !isOwnObservation && (
+            {isAdmin && !isOwn && (
               <div className={styles.adminActions}>
                 <div className={styles.adminLabel}>
                   <ShieldIcon />

@@ -10,6 +10,7 @@ export type LocalizedText = Record<Locale, string>;
 export interface UserProfile {
   id: string;
   name: string;
+  owner_ref?: string;
 }
 
 export interface Observation {
@@ -27,7 +28,8 @@ export interface Observation {
   longitude_blurred: number;
   latitude_blurred: number;
   photo_url: string | null;
-  user_id: string;
+  user_id?: string;
+  owner_ref?: string;
   source_name?: string;
   source_url?: string;
   observer_name?: string;
@@ -46,7 +48,7 @@ export interface Observation {
   family?: string;
   quality_label?: string;
   verification_label?: string;
-  source_kind?: "demo" | "gbif" | "inaturalist" | "obis" | "reference" | "local";
+  source_kind?: "gbif" | "inaturalist" | "obis" | "reference" | "local";
   external_id?: string;
   visibility?: ObservationVisibility;
   privacy_level?: ObservationPrivacyLevel;

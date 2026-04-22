@@ -1,12 +1,24 @@
 /* (c) 2026 - Loris Dc - WildEye Project */
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useAppStore } from "@/lib/store";
-import Map from "@/components/Map";
-import Sidebar from "@/components/Sidebar";
 import LocationHeader from "@/components/LocationHeader";
 import styles from "./page.module.css";
+
+const Map = dynamic(() => import("@/components/Map"), {
+  ssr: false,
+  loading: () => <div className={styles.mapLoading} aria-label="Chargement de la carte" />,
+});
+
+const Sidebar = dynamic(() => import("@/components/Sidebar"), {
+  ssr: false,
+});
+
+const GoogleTranslateSwitcher = dynamic(() => import("@/components/GoogleTranslateSwitcher"), {
+  ssr: false,
+});
 
 function AdminLogin() {
   const isAdmin = useAppStore((s) => s.isAdmin);
@@ -46,10 +58,20 @@ export default function Home() {
   const startAddObservation = useAppStore((s) => s.startAddObservation);
   const isAddingObservation = useAppStore((s) => s.isAddingObservation);
   const refreshAdminSession = useAppStore((s) => s.refreshAdminSession);
+  const refreshUserSession = useAppStore((s) => s.refreshUserSession);
 
   useEffect(() => {
-    loadExternalData();
-  }, [loadExternalData, timeRange]);
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      refreshUserSession().finally(() => {
+        if (!cancelled) loadExternalData();
+      });
+    }, 120);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [loadExternalData, refreshUserSession, timeRange]);
 
   useEffect(() => {
     refreshAdminSession();
@@ -74,6 +96,7 @@ export default function Home() {
         <span className={styles.supportIcon}>€</span>
         <span>Soutenez-moi</span>
       </a>
+      <GoogleTranslateSwitcher />
 
       {/* Data source indicator */}
       <div className={styles.watermark}>
@@ -96,8 +119,8 @@ export default function Home() {
               }}
             />
             {dataSource === "mixed"
-              ? "Échantillon réel mondial + contributions"
-              : "Échantillon réel mondial — GBIF + iNaturalist + OBIS"}
+              ? "Observations réelles + contributions"
+              : "Observations réelles — GBIF + iNaturalist + OBIS"}
           </>
         )}
       </div>

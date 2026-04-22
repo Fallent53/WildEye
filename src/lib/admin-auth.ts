@@ -7,7 +7,7 @@ export const ADMIN_SESSION_COOKIE = "wildeye_admin_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 
 function getSessionSecret() {
-  return process.env.ADMIN_SESSION_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  return process.env.ADMIN_SESSION_SECRET || "";
 }
 
 function sign(value: string) {

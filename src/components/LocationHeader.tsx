@@ -114,7 +114,7 @@ export default function LocationHeader({ onFlyTo, onStartAddObservation, isAddin
         {isOpen && results.length > 0 && (
           <ul className={styles.resultList} role="listbox" aria-label="Résultats de recherche">
             {results.map((feature) => (
-              <li key={feature.id} className={styles.resultItem} role="option">
+              <li key={feature.id} className={styles.resultItem} role="option" aria-selected="false">
                 <span className={styles.resultLabel}>
                   <strong>{feature.place_name.split(",")[0]}</strong>
                   <span className={styles.resultSub}>

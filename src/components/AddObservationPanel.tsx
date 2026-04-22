@@ -7,7 +7,6 @@ import { CATEGORY_CONFIG } from "@/lib/constants";
 import { Category } from "@/lib/types";
 import {
   findBestAnimalSuggestion,
-  findAnimalSpecies,
   getSpeciesSuggestions,
   standardizeAnimalSpecies,
 } from "@/lib/species-catalog";
@@ -21,8 +20,22 @@ function getTodayInputValue() {
 }
 
 function inputDateToIso(value: string) {
-  return new Date(`${value}T12:00:00.000Z`).toISOString();
+  const observedAt = new Date(`${value}T12:00:00.000Z`);
+  const now = new Date();
+  return (observedAt > now ? now : observedAt).toISOString();
 }
+
+type AnimalDetails = {
+  vernacularName: string;
+  scientificName?: string;
+  group?: string;
+  family?: string;
+  emoji?: string;
+  photoUrl?: string;
+  habitatHint?: string;
+  activityHint?: string;
+  sensitivityLabel?: string;
+};
 
 export default function AddObservationPanel() {
   const newObservationCoords = useAppStore((s) => s.newObservationCoords);
@@ -52,20 +65,16 @@ export default function AddObservationPanel() {
 
   const suggestions = getSpeciesSuggestions(category, speciesName);
   const trimmedSpeciesName = speciesName.trim();
-  const exactAnimalMatch =
-    category === "faune"
-      ? findAnimalSpecies(trimmedSpeciesName)
-      : undefined;
-
   // Debounced Remote Search
   useEffect(() => {
-    if (trimmedSpeciesName.length < 3) {
-      setRemoteSuggestions([]);
-      setRemoteMinerals([]);
-      return;
-    }
-
     const timer = setTimeout(async () => {
+      if (trimmedSpeciesName.length < 3) {
+        setRemoteSuggestions([]);
+        setRemoteMinerals([]);
+        setIsSearching(false);
+        return;
+      }
+
       setIsSearching(true);
       if (category === "faune" || category === "flore") {
         const results = await searchSpecies(trimmedSpeciesName, category);
@@ -117,9 +126,9 @@ export default function AddObservationPanel() {
 
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!speciesName.trim() || !observedDate || !newObservationCoords) return;
+    if (!speciesName.trim() || !observedDate || !newObservationCoords || isSubmitting) return;
     if (!hasValidMatch) {
         alert("Merci de sélectionner une espèce ou un minéral dans la liste suggérée.");
         return;
@@ -137,7 +146,7 @@ export default function AddObservationPanel() {
     const remote = selectedRemoteTaxon.current;
     const remoteMineral = selectedRemoteMineral.current;
     
-    const animalMatch =
+    const animalMatch: AnimalDetails | undefined =
       category === "faune"
         ? (remote ? {
             vernacularName: remote.preferred_common_name || remote.name,
@@ -155,8 +164,9 @@ export default function AddObservationPanel() {
     const normalizedName = animalMatch?.vernacularName ?? speciesName.trim();
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      addObservation({
+    let ok = false;
+    try {
+      ok = await addObservation({
         observed_at: inputDateToIso(observedDate),
         category,
         species_name: normalizedName,
@@ -165,9 +175,9 @@ export default function AddObservationPanel() {
           category === "faune" ? animalMatch?.scientificName : undefined,
         animal_group: category === "faune" ? animalMatch?.group : undefined,
         animal_emoji: category === "faune" ? animalMatch?.emoji : undefined,
-        habitat_hint: category === "faune" ? (animalMatch as any).habitatHint : undefined,
-        activity_hint: category === "faune" ? (animalMatch as any).activityHint : undefined,
-        sensitivity_label: category === "faune" ? (animalMatch as any).sensitivityLabel : undefined,
+        habitat_hint: category === "faune" ? animalMatch?.habitatHint : undefined,
+        activity_hint: category === "faune" ? animalMatch?.activityHint : undefined,
+        sensitivity_label: category === "faune" ? animalMatch?.sensitivityLabel : undefined,
         family: category === "faune" ? animalMatch?.family : undefined,
         quality_label: remote 
             ? "Donnée Mondiale (iNaturalist)" 
@@ -183,13 +193,23 @@ export default function AddObservationPanel() {
         longitude: newObservationCoords.lng,
         latitude: newObservationCoords.lat,
         // Use remote photo if user didn't upload one
-        photo_url: photoUrl || (animalMatch as any).photoUrl || (remote as any)?.default_photo?.medium_url || null,
+        photo_url: photoUrl || animalMatch?.photoUrl || remote?.default_photo?.medium_url || null,
         source_url: remoteMineral?.url,
         crystal_system: category === "cristal" ? crystalSystem : undefined,
         luster: category === "cristal" ? luster : undefined,
         hardness: category === "cristal" ? hardness : undefined,
         associated_minerals: category === "cristal" ? associatedMinerals : undefined,
       });
+    } catch {
+      ok = false;
+    }
+
+    if (!ok) {
+      alert("Publication impossible pour le moment. Vérifiez les champs puis réessayez.");
+      setIsSubmitting(false);
+      return;
+    }
+
       // Reset form
       setSpeciesName("");
       setDescription("");
@@ -204,7 +224,6 @@ export default function AddObservationPanel() {
       setIsSubmitting(false);
       selectedRemoteTaxon.current = null;
       selectedRemoteMineral.current = null;
-    }, 400);
   };
 
   return (
@@ -343,6 +362,7 @@ export default function AddObservationPanel() {
                           onClick={() => selectRemoteSuggestion(taxon)}
                         >
                           {taxon.default_photo ? (
+                            // eslint-disable-next-line @next/next/no-img-element
                             <img src={taxon.default_photo.square_url} className={styles.suggestionThumb} alt="" />
                           ) : (
                             <div className={styles.suggestionIcon}>

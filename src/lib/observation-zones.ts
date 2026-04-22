@@ -207,6 +207,6 @@ export function buildObservationLinks(observations: Observation[]) {
   return buildObservationZones(observations).filter((z) => z.type === "link");
 }
 
-export function linksToGeoJSON(links: any[]) {
-  return zonesToGeoJSON(links as any);
+export function linksToGeoJSON(links: ObservationZone[]) {
+  return zonesToGeoJSON(links);
 }

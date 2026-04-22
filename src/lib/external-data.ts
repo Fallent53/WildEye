@@ -146,11 +146,15 @@ function gbifToObservation(occ: GBIFOccurrence): Observation {
     group: occ.class,
     family: occ.family,
   });
+  const dates = normalizeObservationDates(
+    occ.eventDate ?? buildDateFromParts(occ.year, occ.month, occ.day),
+    occ.modified ?? occ.lastCrawled ?? occ.eventDate ?? buildDateFromParts(occ.year, occ.month, occ.day)
+  );
 
   return {
     id: `gbif-${occ.key}`,
-    observed_at: normalizeDate(occ.eventDate ?? buildDateFromParts(occ.year, occ.month, occ.day)),
-    created_at: normalizeDate(occ.modified ?? occ.lastCrawled ?? occ.eventDate ?? buildDateFromParts(occ.year, occ.month, occ.day)),
+    observed_at: dates.observed_at,
+    created_at: dates.created_at,
     category,
     species_name: standardized?.vernacularName ?? occ.vernacularName ?? rawSpeciesName,
     common_name: standardized?.vernacularName ?? occ.vernacularName,
@@ -223,6 +227,20 @@ function normalizeDate(date?: string): string {
   if (!date) return new Date().toISOString();
   const parsed = new Date(date);
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+}
+
+function normalizeObservationDates(observedDate?: string, createdDate?: string) {
+  const observed = new Date(normalizeDate(observedDate));
+  const created = new Date(normalizeDate(createdDate ?? observedDate));
+  const now = new Date();
+
+  if (observed > now) observed.setTime(now.getTime());
+  if (created < observed) created.setTime(observed.getTime());
+
+  return {
+    observed_at: observed.toISOString(),
+    created_at: created.toISOString(),
+  };
 }
 
 function buildGBIFDescription(occ: GBIFOccurrence): string {
@@ -409,11 +427,12 @@ function inatToObservation(obs: INatObservation): Observation | null {
     obs.photos?.[0]?.url?.replace("square", "medium") ??
     obs.taxon?.default_photo?.medium_url ??
     null;
+  const dates = normalizeObservationDates(obs.observed_on ?? obs.created_at, obs.created_at);
 
   return {
     id: `inat-${obs.id}`,
-    observed_at: normalizeDate(obs.observed_on ?? obs.created_at),
-    created_at: normalizeDate(obs.created_at),
+    observed_at: dates.observed_at,
+    created_at: dates.created_at,
     category,
     species_name: frenchTaxonName ?? standardized?.vernacularName ?? rawSpeciesName,
     common_name:
@@ -570,15 +589,16 @@ function obisToObservation(occ: OBISOccurrence): Observation | null {
   const blurAngle = Math.random() * Math.PI * 2;
   const id = occ.id ?? occ.occurrenceID ?? `${scientificName}-${occ.decimalLongitude}-${occ.decimalLatitude}`;
   const observedAt = occ.eventDate ?? (occ.date_year ? `${occ.date_year}-01-01` : undefined);
+  const dates = normalizeObservationDates(observedAt, observedAt);
 
   return {
     id: `obis-${id}`,
-    observed_at: normalizeDate(observedAt),
-    created_at: normalizeDate(observedAt),
+    observed_at: dates.observed_at,
+    created_at: dates.created_at,
     category,
     species_name: frenchTaxonName ?? standardized?.vernacularName ?? rawSpeciesName,
     common_name: frenchTaxonName ?? standardized?.vernacularName,
-    description: buildOBISDescription(occ),
+    description: buildOBISDescription(),
     longitude: occ.decimalLongitude,
     latitude: occ.decimalLatitude,
     longitude_blurred: occ.decimalLongitude + Math.cos(blurAngle) * blurOffset,
@@ -606,7 +626,7 @@ function obisToObservation(occ: OBISOccurrence): Observation | null {
   };
 }
 
-function buildOBISDescription(occ: OBISOccurrence): string {
+function buildOBISDescription(): string {
   // OBIS is purely scientific records, mostly without human notes
   return "";
 }

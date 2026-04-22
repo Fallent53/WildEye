@@ -35,6 +35,16 @@ export interface INatAutocompleteResponse {
   results: RemoteTaxon[];
 }
 
+interface WikidataSearchItem {
+  id?: string;
+  label?: string;
+  description?: string;
+}
+
+interface WikidataSearchResponse {
+  search?: WikidataSearchItem[];
+}
+
 /**
  * Searches for species using iNaturalist autocomplete API.
  * Filtered by category (Fauna or Flora).
@@ -89,11 +99,13 @@ export async function searchMinerals(query: string): Promise<RemoteMineral[]> {
   try {
     const response = await fetch(url.toString());
     if (!response.ok) return [];
-    const data = await response.json();
+    const data = (await response.json()) as WikidataSearchResponse;
 
     if (!data.search) return [];
 
-    return (data.search as any[]).map(item => ({
+    return data.search.filter((item): item is Required<Pick<WikidataSearchItem, "id" | "label">> & WikidataSearchItem =>
+      Boolean(item.id && item.label)
+    ).map(item => ({
       id: item.id,
       label: item.label,
       description: item.description,

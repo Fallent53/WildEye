@@ -283,3 +283,39 @@ input, textarea, select {
   color: var(--color-text-primary) !important;
   background: transparent !important;
 }
+
+/* Google Translate injects a banner iframe and body offsets. Keep the map layout stable. */
+body {
+  top: 0 !important;
+  position: static !important;
+}
+
+.skiptranslate iframe,
+.goog-te-banner-frame,
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.goog-logo-link,
+.goog-te-gadget span {
+  display: none !important;
+}
+
+.goog-te-gadget {
+  position: absolute !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.goog-te-combo {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

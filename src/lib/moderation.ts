@@ -11,8 +11,18 @@ const FORBIDDEN_WORDS = [
   // English (common)
   "fuck", "shit", "bitch", "bastard", "dick", "pussy", "asshole", "faggot", "nigger", "cunt",
   // Slurs / Hate speech
-  "nazi", "hitler", "negre", "bougnoul", "youpin", "sale", "mort", "tuer", "viol"
+  "hitler", "negre", "bougnoul", "youpin"
 ];
+
+const FORBIDDEN_PATTERNS = [
+  /\bnazi(?:s|sme)?\b/i,
+  /\b(?:je\s+vais\s+)?(?:te\s+)?tuer\b/i,
+  /\bviol(?:er|e|s)?\b/i,
+];
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /**
  * Validates text content against a blacklist of forbidden words.
@@ -28,11 +38,14 @@ export function validateContent(text: string): { isValid: boolean; foundWords: s
   const found: string[] = [];
 
   FORBIDDEN_WORDS.forEach((word) => {
-    // Check for exact word matches or words embedded with spaces/symbols
-    const regex = new RegExp(`\\b${word}\\b|${word}`, "i");
+    const regex = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
     if (regex.test(normalized)) {
       found.push(word);
     }
+  });
+
+  FORBIDDEN_PATTERNS.forEach((regex) => {
+    if (regex.test(normalized)) found.push(regex.source);
   });
 
   // Unique findings
